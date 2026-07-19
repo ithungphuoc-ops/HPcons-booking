@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE_NAME } from "@/lib/session-constants";
+
+// Inline thay vì import từ "@/lib/session-constants" — import path-alias vào
+// Edge Function (middleware) từng gây lỗi build "unsupported modules" trên
+// Vercel cho project này (không rõ nguyên nhân chính xác, đây là workaround).
+// Phải khớp đúng giá trị SESSION_COOKIE_NAME trong lib/session-constants.ts.
+const SESSION_COOKIE_NAME = "session";
 
 // File tĩnh trong public/ (ảnh, logo, font...) không cần đăng nhập
 const STATIC_FILE_RE = /\.(svg|png|jpg|jpeg|gif|webp|ico|css|js|woff2?)$/i;
