@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+
+  /* ===== HPCons Design System V1.1 — token màu (Light Mode) ===== */
+  --hp-primary: #096AA7;
+  --hp-success: #60BB46;
+  --hp-warning: #FFA726;
+  --hp-neutral: #9E9E9E;
+  --hp-danger: #E53935;
+  --hp-nav-base: #4B4F55;
+
+  --hp-background: #F1F5F9;
+  --hp-surface: #F8FAFC;
+  --hp-card: #FFFFFF;
+  --hp-elevated: #FFFFFF;
+  --hp-border: rgba(15, 25, 35, .10);
+  --hp-divider: rgba(15, 25, 35, .06);
+  --hp-text-primary: #1B2733;
+  --hp-text-secondary: #46545F;
+  --hp-text-desc: #64707C;
+  --hp-text-disabled: #9AA5AF;
+
+  --hp-primary-soft: color-mix(in srgb, var(--hp-primary) 62%, #000);
+  --hp-primary-bg: color-mix(in srgb, var(--hp-primary) 12%, transparent);
+  --hp-success-soft: color-mix(in srgb, var(--hp-success) 62%, #000);
+  --hp-success-bg: color-mix(in srgb, var(--hp-success) 12%, transparent);
+  --hp-warning-soft: color-mix(in srgb, var(--hp-warning) 62%, #000);
+  --hp-warning-bg: color-mix(in srgb, var(--hp-warning) 12%, transparent);
+  --hp-neutral-soft: color-mix(in srgb, var(--hp-neutral) 62%, #000);
+  --hp-neutral-bg: color-mix(in srgb, var(--hp-neutral) 12%, transparent);
+  --hp-danger-soft: color-mix(in srgb, var(--hp-danger) 62%, #000);
+  --hp-danger-bg: color-mix(in srgb, var(--hp-danger) 12%, transparent);
+
+  /* ===== Booking (app/(booking)) — token riêng theo Dac-ta-giao-dien-Base-Booking-tu-video.md §8.2.
+     Booking là app con có sidebar/thẩm mỹ riêng, KHÔNG dùng chung --hp-* của app tổng. */
+  --booking-sidebar: #061f17;
+  --booking-primary: #19c887;
+  --booking-primary-strong: #0fb978;
+  --booking-save: #39d10f;
+  --booking-text: #20272d;
+  --booking-muted: #7c858d;
+  --booking-border: #e4e7e9;
+  --booking-bg: #f6f7f7;
+  --booking-surface: #ffffff;
+  --booking-today: #f2f4fb;
+  --booking-current-time: #ef6078;
+  --booking-pending: #e5ad14;
+  --booking-radius: 3px;
+  --booking-sidebar-width: 148px;
+}
+
+.dark {
+  /* ===== HPCons Design System V1.1 — token màu (Dark Mode) ===== */
+  --hp-background: #0F1923;
+  --hp-surface: #131F2B;
+  --hp-card: #182531;
+  --hp-elevated: #1F2F3D;
+  --hp-border: rgba(255, 255, 255, .08);
+  --hp-divider: rgba(255, 255, 255, .06);
+  --hp-text-primary: #F5F7FA;
+  --hp-text-secondary: #B8C0C8;
+  --hp-text-desc: #8F9AA5;
+  --hp-text-disabled: #66717C;
+
+  --hp-primary-soft: color-mix(in srgb, var(--hp-primary) 60%, #fff);
+  --hp-primary-bg: color-mix(in srgb, var(--hp-primary) 18%, transparent);
+  --hp-success-soft: color-mix(in srgb, var(--hp-success) 60%, #fff);
+  --hp-success-bg: color-mix(in srgb, var(--hp-success) 18%, transparent);
+  --hp-warning-soft: color-mix(in srgb, var(--hp-warning) 60%, #fff);
+  --hp-warning-bg: color-mix(in srgb, var(--hp-warning) 18%, transparent);
+  --hp-neutral-soft: color-mix(in srgb, var(--hp-neutral) 60%, #fff);
+  --hp-neutral-bg: color-mix(in srgb, var(--hp-neutral) 18%, transparent);
+  --hp-danger-soft: color-mix(in srgb, var(--hp-danger) 60%, #fff);
+  --hp-danger-bg: color-mix(in srgb, var(--hp-danger) 18%, transparent);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Inter, Roboto, Arial, sans-serif;
+}
+
+/* Trang Tài khoản (app/(dashboard)/profile) — hiệu ứng mở modal cài đặt */
+@keyframes overlay-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-pop-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-overlay {
+  animation: overlay-fade-in 150ms ease-out;
+}
+
+.animate-modal-pop {
+  animation: modal-pop-in 150ms ease-out;
+}
