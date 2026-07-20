@@ -11,7 +11,9 @@ import type { MentionOption } from '@/components/comments/CommentComposer'
 export type BookingDetail = {
   id: string
   user_id: string
+  resource_id: string
   title: string
+  purpose_id: string | null
   purpose_name: string | null
   note: string | null
   destination: string | null
@@ -24,6 +26,7 @@ export type BookingDetail = {
   user: { full_name: string; email: string } | null
   followers: { id: string; name: string; title?: string | null }[]
   attachments?: { name: string; url: string }[]
+  form_data?: { fieldId: string; label: string; type: string; value: unknown }[]
   approvals: { approver_id: string; approver_name: string; approver_title?: string | null; level: number; status: string; note: string | null }[]
   logs: { user_id: string; actor_name: string; action: string; created_at: string }[]
 }
@@ -34,12 +37,14 @@ export default function BookingDetailDialog({
   isAdmin,
   onClose,
   onUpdated,
+  onEdit,
 }: {
   bookingId: string
   myUserId: string
   isAdmin?: boolean
   onClose: () => void
   onUpdated: () => void
+  onEdit?: (detail: BookingDetail) => void
 }) {
   const [detail, setDetail] = useState<BookingDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -173,12 +178,24 @@ export default function BookingDetailDialog({
                 )}
               </Section>
 
-              {(d.purpose_name || d.destination || d.passengers || d.quantity) && (
+              {(d.purpose_name || d.destination || d.passengers || d.quantity || (d.form_data && d.form_data.length > 0)) && (
                 <Section title={`MỤC ĐÍCH${d.resource ? ' — ' + d.resource.name.toUpperCase() : ''}`}>
                   {d.purpose_name && <InfoRow icon={<Target size={14} />} label="Chi tiết mục đích" value={d.purpose_name} />}
                   {d.quantity != null && <InfoRow icon={<Users2 size={14} />} label="Số lượng" value={String(d.quantity)} />}
                   {d.destination && <InfoRow icon={<MapPin size={14} />} label="Điểm đến" value={d.destination} />}
                   {d.passengers && <InfoRow icon={<Users2 size={14} />} label="Hành khách" value={d.passengers} />}
+                  {d.form_data?.map((f) => {
+                    if (f.type === 'file' && f.value && typeof f.value === 'object') {
+                      const fileVal = f.value as { name: string; url: string }
+                      return (
+                        <InfoRow key={f.fieldId} icon={<Paperclip size={14} />} label={f.label} value={
+                          <a href={fileVal.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--hp-primary)' }}>{fileVal.name}</a>
+                        } />
+                      )
+                    }
+                    const display = Array.isArray(f.value) ? f.value.join(', ') : typeof f.value === 'boolean' ? (f.value ? 'Có' : 'Không') : String(f.value ?? '')
+                    return <InfoRow key={f.fieldId} icon={<Target size={14} />} label={f.label} value={display} />
+                  })}
                 </Section>
               )}
 
@@ -219,8 +236,13 @@ export default function BookingDetailDialog({
                 </Section>
               )}
 
-              {d.user_id === myUserId && (d.status === 'pending' || d.status === 'approved') && new Date(d.start_at) > loadedAt && (
-                <button onClick={cancel} className="text-xs font-medium" style={{ color: 'var(--hp-danger)' }}>Hủy đặt lịch này</button>
+              {(d.status === 'pending' || d.status === 'approved') && new Date(d.start_at) > loadedAt && (d.user_id === myUserId || isAdmin) && (
+                <div className="flex gap-3">
+                  {onEdit && <button onClick={() => onEdit(d)} className="text-xs font-medium" style={{ color: 'var(--hp-primary)' }}>Sửa đăng ký</button>}
+                  {d.user_id === myUserId && (
+                    <button onClick={cancel} className="text-xs font-medium" style={{ color: 'var(--hp-danger)' }}>Hủy đặt lịch này</button>
+                  )}
+                </div>
               )}
 
               <Section title="BÌNH LUẬN">
@@ -303,8 +325,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-function InfoRow({ icon, label, value, multiline }: { icon: React.ReactNode; label: string; value?: string | null; multiline?: boolean }) {
-  if (!value) return null
+function InfoRow({ icon, label, value, multiline }: { icon: React.ReactNode; label: string; value?: React.ReactNode; multiline?: boolean }) {
+  if (value === undefined || value === null || value === '') return null
   return (
     <div className={`mt-1.5 flex gap-2 ${multiline ? 'items-start' : 'items-center'}`}>
       <span style={{ color: 'var(--hp-text-desc)' }}>{icon}</span>

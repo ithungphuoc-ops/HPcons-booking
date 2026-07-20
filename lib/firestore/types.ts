@@ -217,6 +217,34 @@ export interface FirestoreBookingResource {
   // tài nguyên này"), KHÔNG dùng cho chuỗi duyệt (xem comment approverIds ở trên).
   managerId?: string | null;
   followerIds?: string[];
+  // Loại đăng ký (20/07/2026) — 'auto' bỏ qua toàn bộ chuỗi duyệt 2 cấp,
+  // booking tạo ra được duyệt ngay (vẫn chặn trùng lịch bình thường). Thiếu
+  // field (dữ liệu cũ) hoặc bất kỳ giá trị nào khác 'auto' đều xử lý như
+  // 'approval' (giữ đúng hành vi hiện tại) — xem createBooking() trong
+  // lib/firestore/bookings.ts.
+  registrationType?: "auto" | "approval";
+  // Tệp đính kèm CỦA TÀI NGUYÊN (20/07/2026, vd quy định sử dụng, sơ đồ) —
+  // tách biệt hoàn toàn với attachments của từng booking (FirestoreBooking).
+  attachments?: { name: string; url: string }[];
+  // Giới hạn khung giờ được phép đặt (20/07/2026, tuỳ chọn) — thiếu field =
+  // KHÔNG giới hạn (mặc định, theo xác nhận của Sếp). startHour/endHour dạng
+  // số 0-24 (giờ trong ngày); blockedWeekdays dùng đúng convention
+  // Date.getDay() (0=Chủ Nhật...6=Thứ Bảy). Validate ở createBooking() và
+  // updateBookingCore() trong lib/firestore/bookings.ts.
+  bookingWindow?: { startHour: number; endHour: number; blockedWeekdays?: number[] };
+}
+
+// Loại trường trong biểu mẫu tuỳ chỉnh theo mục đích (20/07/2026) — trình
+// thiết kế kéo-thả ở app/(booking)/bookings/purposes/page.tsx.
+export type BookingFormFieldType =
+  | "text" | "textarea" | "number" | "date" | "select" | "multiselect" | "checkbox" | "file";
+
+export interface BookingFormField {
+  id: string; // sinh bằng crypto.randomUUID() phía client, dùng làm key kéo-thả + khoá formData
+  label: string;
+  type: BookingFormFieldType;
+  required: boolean;
+  options?: string[]; // chỉ dùng cho select/multiselect
 }
 
 export interface FirestoreBookingPurpose {
@@ -224,6 +252,21 @@ export interface FirestoreBookingPurpose {
   isActive: boolean;
   createdBy: string | null;
   createdAt: Timestamp;
+  // Biểu mẫu tuỳ chỉnh riêng của mục đích này (20/07/2026) — thiếu field
+  // hoặc mảng rỗng = không có trường nào thêm khi chọn mục đích này.
+  formSchema?: BookingFormField[];
+}
+
+// 1 mục đã điền của formData — LÀ SNAPSHOT tại thời điểm tạo booking, không
+// phải map tra cứu theo formSchema hiện tại của mục đích (schema có thể đổi/
+// xoá trường sau này, nhưng chi tiết booking cũ vẫn phải hiển thị đúng nhãn
+// đã điền lúc đó — xem design.md Decision 4 của change
+// booking-purpose-form-designer).
+export interface BookingFormDataEntry {
+  fieldId: string;
+  label: string;
+  type: BookingFormFieldType;
+  value: string | number | boolean | string[] | { name: string; url: string } | null;
 }
 
 export type BookingStatus = "pending" | "approved" | "rejected" | "cancelled";
@@ -247,12 +290,14 @@ export interface FirestoreBooking {
   resourceId: string;
   userId: string;
   title: string;
-  // Danh sách mục đích dựng sẵn (bookingPurposes) — không còn bắt buộc chọn
-  // lúc tạo booking (18/07/2026), giữ field để không phá dữ liệu cũ.
+  // Mục đích chọn từ danh sách quản trị (bookingPurposes) — quay lại thành
+  // select bắt buộc chọn 1 trong 2 (mục đích thật HOẶC "Khác", 20/07/2026)
+  // sau khi thêm trình thiết kế biểu mẫu theo mục đích. null khi người dùng
+  // chọn "Khác" (nhập tự do ở purposeText).
   purposeId: string | null;
-  // Mục đích gõ tay tự do (18/07/2026) — thay cho việc bắt buộc admin phải
-  // tạo trước danh sách mục đích mới ghi được gì. Ưu tiên hiển thị field này
-  // nếu có, xem toBookingJson() trong lib/firestore/bookings.ts.
+  // Mục đích gõ tay tự do — CHỈ có giá trị khi người dùng chọn "Khác" trong
+  // select (20/07/2026). Ưu tiên hiển thị field này nếu có, xem
+  // toBookingJson() trong lib/firestore/bookings.ts.
   purposeText?: string | null;
   note: string | null;
   destination: string | null;
@@ -268,6 +313,12 @@ export interface FirestoreBooking {
   // Tệp đính kèm (18/07/2026) — tải qua app/api/bookings/attachments/route.ts
   // TRƯỚC khi tạo booking (chưa có bookingId), URL gửi kèm lúc tạo.
   attachments?: { name: string; url: string }[];
+  // Dữ liệu đã điền của các trường tuỳ chỉnh theo mục đích (20/07/2026) — là
+  // SNAPSHOT tại thời điểm tạo, xem comment BookingFormDataEntry ở trên.
+  formData?: BookingFormDataEntry[];
+  // Đã gửi thông báo "sắp tới giờ" chưa (20/07/2026) — tránh nhắc trùng nhiều
+  // lần cùng 1 booking qua các lần cron chạy (xem app/api/bookings/reminders).
+  remindedUpcoming?: boolean;
 }
 
 /**

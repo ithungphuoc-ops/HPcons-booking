@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Search, Target, Pencil, Check, X } from 'lucide-react'
+import { ArrowLeft, Search, Target, Pencil, Check, X, LayoutGrid } from 'lucide-react'
 import EmptyState from '@/components/booking/EmptyState'
+import PurposeFormDesigner from '@/components/booking/PurposeFormDesigner'
+import type { BookingFormField } from '@/lib/firestore/types'
 
-type Purpose = { id: string; name: string; is_active: boolean; creator_name: string | null; count: number }
+type Purpose = { id: string; name: string; is_active: boolean; creator_name: string | null; count: number; form_schema: BookingFormField[] }
 
 export default function PurposesPage() {
   const [purposes, setPurposes] = useState<Purpose[]>([])
@@ -17,6 +19,7 @@ export default function PurposesPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
+  const [designingId, setDesigningId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -104,13 +107,29 @@ export default function PurposesPage() {
       ) : (
         <div className="overflow-hidden rounded-xl" style={{ background: 'var(--hp-card)', border: '1px solid var(--hp-border)' }}>
           {active.map((p, i) => (
-            <PurposeRow
-              key={p.id} p={p} last={i === active.length - 1} isAdmin={isAdmin}
-              onToggle={() => toggle(p.id)}
-              editing={editingId === p.id} editName={editName} onEditNameChange={setEditName}
-              onStartEdit={() => startEdit(p)} onCancelEdit={() => setEditingId(null)}
-              onSaveEdit={() => saveEdit(p.id)} savingEdit={savingEdit}
-            />
+            <div key={p.id}>
+              <PurposeRow
+                p={p} last={i === active.length - 1 && designingId !== p.id} isAdmin={isAdmin}
+                onToggle={() => toggle(p.id)}
+                editing={editingId === p.id} editName={editName} onEditNameChange={setEditName}
+                onStartEdit={() => startEdit(p)} onCancelEdit={() => setEditingId(null)}
+                onSaveEdit={() => saveEdit(p.id)} savingEdit={savingEdit}
+                designing={designingId === p.id}
+                onToggleDesign={() => setDesigningId((cur) => (cur === p.id ? null : p.id))}
+              />
+              {designingId === p.id && (
+                <div className="px-4 pb-4">
+                  <PurposeFormDesigner
+                    purposeId={p.id}
+                    initialSchema={p.form_schema}
+                    onSaved={(schema) => {
+                      setPurposes((prev) => prev.map((x) => (x.id === p.id ? { ...x, form_schema: schema } : x)))
+                      setDesigningId(null)
+                    }}
+                  />
+                </div>
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -141,10 +160,12 @@ export default function PurposesPage() {
 
 function PurposeRow({
   p, last, isAdmin, onToggle, editing, editName, onEditNameChange, onStartEdit, onCancelEdit, onSaveEdit, savingEdit,
+  designing, onToggleDesign,
 }: {
   p: Purpose; last: boolean; isAdmin: boolean; onToggle: () => void
   editing: boolean; editName: string; onEditNameChange: (v: string) => void
   onStartEdit: () => void; onCancelEdit: () => void; onSaveEdit: () => void; savingEdit: boolean
+  designing?: boolean; onToggleDesign?: () => void
 }) {
   if (editing) {
     return (
@@ -172,6 +193,16 @@ function PurposeRow({
       <span className="rounded-full px-2.5 py-0.5 text-xs font-semibold" style={{ background: p.is_active ? 'var(--hp-success-bg)' : 'var(--hp-neutral-bg)', color: p.is_active ? 'var(--hp-success-soft)' : 'var(--hp-text-desc)' }}>
         {p.is_active ? 'Đang dùng' : 'Đã tắt'}
       </span>
+      {p.form_schema.length > 0 && (
+        <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: 'var(--hp-primary-bg)', color: 'var(--hp-primary-soft)' }}>
+          {p.form_schema.length} trường
+        </span>
+      )}
+      {isAdmin && onToggleDesign && (
+        <button onClick={onToggleDesign} className="shrink-0 p-1.5 rounded-lg" style={{ color: designing ? 'var(--hp-primary)' : 'var(--hp-text-desc)' }} title="Thiết kế biểu mẫu">
+          <LayoutGrid size={14} />
+        </button>
+      )}
       {isAdmin && (
         <button onClick={onStartEdit} className="shrink-0 p-1.5 rounded-lg" style={{ color: 'var(--hp-text-desc)' }} title="Sửa tên">
           <Pencil size={14} />

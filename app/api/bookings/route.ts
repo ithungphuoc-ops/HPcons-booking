@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { Timestamp } from 'firebase-admin/firestore'
 import { requireSession, isAdmin } from '@/lib/session'
 import { listAllUsers } from '@/lib/firestore/users'
-import { listBookingPurposes } from '@/lib/firestore/bookingPurposes'
+import { listBookingPurposes, buildValidatedFormData, BookingFormValidationError } from '@/lib/firestore/bookingPurposes'
 import {
   listBookingResources,
   listBookingsSince,
@@ -11,6 +11,7 @@ import {
   getBookingResourceById,
   toBookingJson,
   BookingConflictError,
+  BookingWindowError,
 } from '@/lib/firestore/bookings'
 import { isAnyDepartmentLeader } from '@/lib/firestore/departments'
 
@@ -24,6 +25,7 @@ export async function GET(req: Request) {
   const status = searchParams.get('status')
   const from = searchParams.get('from')
   const to = searchParams.get('to')
+  const userId = searchParams.get('user_id')
 
   // Lịch tháng (app/(booking)/bookings/page.tsx) truyền from/to = khoảng ngày
   // đang hiển thị. Không truyền gì (vd trang Báo cáo) -> giữ mặc định 30 ngày cũ.
@@ -51,6 +53,7 @@ export async function GET(req: Request) {
 
   if (resourceId) rows = rows.filter((b) => b.resourceId === resourceId)
   if (status) rows = rows.filter((b) => b.status === status)
+  if (userId) rows = rows.filter((b) => b.userId === userId)
 
   // Có thể là người duyệt (trưởng đơn vị bất kỳ hoặc quản lý nhân sự) để hiện tab "Chờ duyệt", hoặc là admin
   const canApproveSomething = isAdmin(session) || (await isAnyDepartmentLeader(session.uid))
@@ -80,7 +83,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Giờ kết thúc phải sau giờ bắt đầu' }, { status: 400 })
   }
 
+  const rawFormData: { fieldId?: string; label?: string; type?: string; value?: unknown }[] =
+    Array.isArray(body.form_data) ? body.form_data : []
+
   try {
+    const formData = await buildValidatedFormData(body.purpose_id, rawFormData)
     const booking = await createBooking({
       resourceId: body.resource_id,
       userId: session.uid,
@@ -94,12 +101,20 @@ export async function POST(req: Request) {
       startAt,
       endAt,
       attachments: Array.isArray(body.attachments) ? body.attachments : [],
-    }, { managerOverrideId: body.manager_override_id || null })
+      formData,
+    }, {
+      managerOverrideId: body.manager_override_id || null,
+      registrationType: resource.registrationType,
+      bookingWindow: resource.bookingWindow,
+    })
 
     return NextResponse.json({ ok: true, id: booking.id })
   } catch (e) {
     if (e instanceof BookingConflictError) {
       return NextResponse.json({ error: e.message }, { status: 409 })
+    }
+    if (e instanceof BookingWindowError || e instanceof BookingFormValidationError) {
+      return NextResponse.json({ error: e.message }, { status: 400 })
     }
     throw e
   }

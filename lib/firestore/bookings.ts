@@ -9,6 +9,8 @@ import type {
   FirestoreBookingResource,
   FirestoreBooking,
   BookingApproval,
+  BookingStatus,
+  BookingFormDataEntry,
 } from "./types";
 
 const GROUPS = "bookingGroups";
@@ -87,13 +89,23 @@ export async function createBookingResource(data: {
   sortOrder: number;
   managerId?: string | null;
   followerIds?: string[];
+  registrationType?: "auto" | "approval";
+  bookingWindow?: FirestoreBookingResource["bookingWindow"];
 }): Promise<BookingResourceWithId> {
   const doc: FirestoreBookingResource = { ...data, isActive: true, createdAt: Timestamp.now() };
   const ref = await adminDb.collection(RESOURCES).add(doc);
   return { id: ref.id, ...doc };
 }
 
-export async function updateBookingResource(id: string, patch: Partial<FirestoreBookingResource>): Promise<void> {
+export async function updateBookingResource(
+  id: string,
+  // bookingWindow chấp nhận thêm FieldValue (xoá field hẳn khi tắt giới hạn
+  // — cần FieldValue.delete() vì ignoreUndefinedProperties chỉ BỎ QUA field
+  // undefined thay vì xoá nó, xem app/api/booking-resources/[id]/route.ts).
+  patch: Partial<Omit<FirestoreBookingResource, "bookingWindow">> & {
+    bookingWindow?: FirestoreBookingResource["bookingWindow"] | FieldValue;
+  },
+): Promise<void> {
   await adminDb.collection(RESOURCES).doc(id).update(patch);
 }
 
@@ -129,24 +141,88 @@ export class BookingConflictError extends Error {
   }
 }
 
+// Lỗi nghiệp vụ: booking nằm ngoài bookingWindow của tài nguyên (20/07/2026).
+// Trả 400 (không phải 409 — đây không phải lỗi trùng lịch).
+export class BookingWindowError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BookingWindowError";
+  }
+}
+
+// Parse + validate payload thô từ client thành bookingWindow hợp lệ (hoặc
+// undefined nếu client không gửi/gửi rỗng — nghĩa là KHÔNG giới hạn). Dùng
+// chung ở cả route tạo và sửa tài nguyên.
+export function parseBookingWindow(raw: unknown): FirestoreBookingResource["bookingWindow"] {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as { startHour?: unknown; endHour?: unknown; blockedWeekdays?: unknown };
+  const startHour = Number(r.startHour);
+  const endHour = Number(r.endHour);
+  if (!Number.isFinite(startHour) || !Number.isFinite(endHour) || startHour >= endHour) return undefined;
+  const blockedWeekdays = Array.isArray(r.blockedWeekdays)
+    ? r.blockedWeekdays.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6)
+    : undefined;
+  return { startHour, endHour, blockedWeekdays: blockedWeekdays && blockedWeekdays.length > 0 ? blockedWeekdays : undefined };
+}
+
+// Kiểm tra startAt/endAt có nằm trong bookingWindow của tài nguyên không.
+// Tài nguyên không cấu hình bookingWindow -> luôn hợp lệ (mặc định KHÔNG
+// giới hạn, theo xác nhận của Sếp — xem design.md của change
+// booking-calendar-limits-import). Dùng chung cho createBooking và
+// updateBookingCore.
+export function validateBookingWindow(
+  resource: Pick<FirestoreBookingResource, "bookingWindow">,
+  startAt: Timestamp,
+  endAt: Timestamp,
+): void {
+  const w = resource.bookingWindow;
+  if (!w) return;
+
+  const start = startAt.toDate();
+  const end = endAt.toDate();
+
+  if (w.blockedWeekdays && w.blockedWeekdays.includes(start.getDay())) {
+    throw new BookingWindowError("Tài nguyên này không nhận đặt lịch vào ngày trong tuần đã chọn.");
+  }
+  const startHourFloat = start.getHours() + start.getMinutes() / 60;
+  const endHourFloat = end.getHours() + end.getMinutes() / 60;
+  if (startHourFloat < w.startHour || endHourFloat > w.endHour) {
+    throw new BookingWindowError(
+      `Tài nguyên này chỉ nhận đặt lịch trong khung giờ ${w.startHour}h–${w.endHour}h.`,
+    );
+  }
+}
+
 export async function createBooking(
   data: Omit<FirestoreBooking, "status" | "approvals" | "followerIds" | "logs" | "createdAt">,
-  opts?: { managerOverrideId?: string | null },
+  opts?: {
+    managerOverrideId?: string | null;
+    registrationType?: "auto" | "approval";
+    bookingWindow?: FirestoreBookingResource["bookingWindow"];
+  },
 ): Promise<BookingWithId> {
+  validateBookingWindow({ bookingWindow: opts?.bookingWindow }, data.startAt, data.endAt);
+
+  // Tài nguyên 'auto' (20/07/2026) bỏ qua toàn bộ chuỗi duyệt bên dưới —
+  // KHÔNG tính approverIds, KHÔNG gửi thông báo duyệt. Transaction chặn
+  // trùng lịch ở dưới vẫn chạy y hệt cho cả 2 loại (xem design.md Decision 2
+  // của change booking-resource-config-upgrade — không được phép bỏ qua
+  // chặn trùng vì lý do registrationType).
+  const isAutoApprove = opts?.registrationType === "auto";
+
   // Chuỗi duyệt theo tổ chức của NGƯỜI ĐẶT (không còn theo tài nguyên —
   // xem design.md Decision 2): cấp 1 = quản lý trực tiếp, cấp 2 = quản lý
   // nhân sự. Bỏ qua cấp không xác định được người (không chặn tạo booking).
   // Người đặt có thể tự chọn/đổi quản lý trực tiếp ngay trong form
   // (opts.managerOverrideId, 18/07/2026) — ưu tiên giá trị này nếu có,
   // thay vì luôn tự động tra theo phòng ban.
-  const [autoManagerId, hrLeaderId] = await Promise.all([
-    getDirectManagerId(data.userId),
-    getHrDepartmentLeaderId(),
-  ]);
+  const [autoManagerId, hrLeaderId] = isAutoApprove
+    ? [null, null]
+    : await Promise.all([getDirectManagerId(data.userId), getHrDepartmentLeaderId()]);
   const managerId = opts?.managerOverrideId ?? autoManagerId;
-  const approverIds = [managerId, hrLeaderId].filter(
-    (id, i, arr): id is string => !!id && arr.indexOf(id) === i,
-  );
+  const approverIds = isAutoApprove
+    ? []
+    : [managerId, hrLeaderId].filter((id, i, arr): id is string => !!id && arr.indexOf(id) === i);
 
   const ref = adminDb.collection(BOOKINGS).doc();
 
@@ -180,7 +256,11 @@ export async function createBooking(
       status: approvals.length === 0 ? "approved" : "pending",
       approvals,
       followerIds: [],
-      logs: [{ userId: data.userId, action: "Tạo đặt lịch mới", at: Timestamp.now() }],
+      logs: [{
+        userId: data.userId,
+        action: isAutoApprove ? "Tạo đặt lịch mới (tự động duyệt)" : "Tạo đặt lịch mới",
+        at: Timestamp.now(),
+      }],
       createdAt: Timestamp.now(),
     };
     tx.set(ref, doc);
@@ -190,6 +270,140 @@ export async function createBooking(
   const booking = { id: ref.id, ...(snap.data() as FirestoreBooking) };
   if (approverIds[0]) await notifyBookingApprover(approverIds[0], booking);
   return booking;
+}
+
+// Sửa 1 đăng ký đã tạo (tách biệt hoàn toàn khỏi decideBooking() — xem
+// design.md Decision 1 của change booking-calendar-limits-import). Nếu giờ
+// hoặc tài nguyên thực sự đổi, chuỗi duyệt được TÍNH LẠI TỪ ĐẦU (không giữ
+// trạng thái đã duyệt cũ — Decision 2: đổi giờ/tài nguyên sau khi đã duyệt
+// có thể khiến quyết định duyệt trước đó không còn hợp lệ). Sửa các field
+// khác (tiêu đề/mục đích/formData/mô tả...) không đụng approvals/status.
+export async function updateBookingCore(
+  id: string,
+  patch: {
+    title?: string;
+    resourceId?: string;
+    startAt?: Timestamp;
+    endAt?: Timestamp;
+    purposeId?: string | null;
+    purposeText?: string | null;
+    formData?: BookingFormDataEntry[];
+    note?: string | null;
+    destination?: string | null;
+    passengers?: string | null;
+    quantity?: number | null;
+  },
+  actorUid: string,
+): Promise<BookingWithId> {
+  const booking = await getBookingById(id);
+  if (!booking) throw new Error("Không tìm thấy booking");
+
+  const effectiveResourceId = patch.resourceId ?? booking.resourceId;
+  const effectiveStartAt = patch.startAt ?? booking.startAt;
+  const effectiveEndAt = patch.endAt ?? booking.endAt;
+
+  const resource = await getBookingResourceById(effectiveResourceId);
+  if (!resource) throw new Error("Tài nguyên không hợp lệ");
+
+  validateBookingWindow(resource, effectiveStartAt, effectiveEndAt);
+
+  const coreChanged =
+    effectiveResourceId !== booking.resourceId ||
+    effectiveStartAt.toMillis() !== booking.startAt.toMillis() ||
+    effectiveEndAt.toMillis() !== booking.endAt.toMillis();
+
+  let newApprovals: BookingApproval[] | null = null;
+  let newStatus: BookingStatus | null = null;
+  let firstApproverId: string | null = null;
+
+  if (coreChanged) {
+    if (resource.registrationType === "auto") {
+      newApprovals = [];
+      newStatus = "approved";
+    } else {
+      const [autoManagerId, hrLeaderId] = await Promise.all([
+        getDirectManagerId(booking.userId),
+        getHrDepartmentLeaderId(),
+      ]);
+      const approverIds = [autoManagerId, hrLeaderId].filter(
+        (v, i, arr): v is string => !!v && arr.indexOf(v) === i,
+      );
+      newApprovals = approverIds.map((approverId, i) => ({
+        approverId,
+        level: i + 1,
+        status: i === 0 ? "pending" : "waiting",
+        note: null,
+        actedAt: null,
+      }));
+      newStatus = newApprovals.length === 0 ? "approved" : "pending";
+      firstApproverId = approverIds[0] ?? null;
+    }
+  }
+
+  const ref = adminDb.collection(BOOKINGS).doc(id);
+
+  await adminDb.runTransaction(async (tx) => {
+    // Cùng pattern chặn trùng của createBooking (1 field filter + lọc code),
+    // loại trừ chính booking đang sửa.
+    const overlapSnap = await tx.get(
+      adminDb.collection(BOOKINGS).where("resourceId", "==", effectiveResourceId),
+    );
+    const hasConflict = overlapSnap.docs.some((d) => {
+      if (d.id === id) return false;
+      const b = d.data() as FirestoreBooking;
+      if (b.status !== "pending" && b.status !== "approved") return false;
+      return b.startAt.toMillis() < effectiveEndAt.toMillis() && b.endAt.toMillis() > effectiveStartAt.toMillis();
+    });
+    if (hasConflict) throw new BookingConflictError();
+
+    const updatePatch: Partial<FirestoreBooking> = {
+      title: patch.title ?? booking.title,
+      resourceId: effectiveResourceId,
+      startAt: effectiveStartAt,
+      endAt: effectiveEndAt,
+      purposeId: patch.purposeId !== undefined ? patch.purposeId : booking.purposeId,
+      purposeText: patch.purposeText !== undefined ? patch.purposeText : booking.purposeText,
+      formData: patch.formData !== undefined ? patch.formData : booking.formData,
+      note: patch.note !== undefined ? patch.note : booking.note,
+      destination: patch.destination !== undefined ? patch.destination : booking.destination,
+      passengers: patch.passengers !== undefined ? patch.passengers : booking.passengers,
+      quantity: patch.quantity !== undefined ? patch.quantity : booking.quantity,
+      logs: [
+        ...booking.logs,
+        {
+          userId: actorUid,
+          action: coreChanged ? "Đã sửa đăng ký (giờ/tài nguyên đổi — cần duyệt lại)" : "Đã sửa đăng ký",
+          at: Timestamp.now(),
+        },
+      ],
+    };
+    if (newApprovals !== null) {
+      updatePatch.approvals = newApprovals;
+      updatePatch.status = newStatus!;
+    }
+
+    tx.update(ref, updatePatch);
+  });
+
+  if (firstApproverId) {
+    const updated = await getBookingById(id);
+    if (updated) await notifyBookingApprover(firstApproverId, updated);
+  }
+
+  // Chỉ báo khi người SỬA HỘ khác với người đặt (vd admin sửa hộ) — tự sửa
+  // đăng ký của chính mình không cần tự báo cho chính mình.
+  if (actorUid !== booking.userId) {
+    await createNotifications([{
+      userId: booking.userId,
+      title: "Đăng ký của bạn đã được sửa",
+      body: `"${patch.title ?? booking.title}" đã được sửa.`,
+      link: `/bookings?open=${id}`,
+      type: "booking_edited",
+    }]);
+  }
+
+  const finalDoc = await getBookingById(id);
+  return finalDoc!;
 }
 
 export async function updateBooking(id: string, patch: Partial<FirestoreBooking>): Promise<void> {
@@ -240,6 +454,35 @@ export async function listBookingsNeedingReminder(): Promise<
   return results;
 }
 
+// Booking 'approved' bắt đầu trong vòng `hoursAhead` giờ tới, chưa từng được
+// nhắc "sắp tới giờ" (xem design.md Decision 2 của change
+// booking-notifications-audit-permissions). Lọc 1 field (status ==) trên
+// Firestore, lọc startAt/remindedUpcoming ở code — đúng pattern module này.
+export async function listBookingsStartingSoon(hoursAhead: number): Promise<BookingWithId[]> {
+  const snap = await adminDb.collection(BOOKINGS).where("status", "==", "approved").get();
+  const now = Date.now();
+  const windowMs = hoursAhead * 3_600_000;
+  return snap.docs
+    .map((d) => ({ id: d.id, ...(d.data() as FirestoreBooking) }))
+    .filter((b) => {
+      if (b.remindedUpcoming) return false;
+      const startMs = b.startAt.toMillis();
+      return startMs > now && startMs - now <= windowMs;
+    });
+}
+
+// Booking 'pending'/'approved' TƯƠNG LAI (chưa diễn ra) trên 1 tài nguyên —
+// dùng để quyết định có cần báo cho quản lý/follower tài nguyên khi đóng hay
+// không (xem app/api/booking-resources/[id]/route.ts).
+export async function hasFutureBookingsForResource(resourceId: string): Promise<boolean> {
+  const snap = await adminDb.collection(BOOKINGS).where("resourceId", "==", resourceId).get();
+  const now = Date.now();
+  return snap.docs.some((d) => {
+    const b = d.data() as FirestoreBooking;
+    return (b.status === "pending" || b.status === "approved") && b.startAt.toMillis() > now;
+  });
+}
+
 // Duyệt theo cấp: activeUid phải trùng approverId của approval đang 'pending',
 // hoặc isAdminOverride=true (admin/owner ép duyệt hết, kể cả cấp chưa tới lượt).
 export async function decideBooking(
@@ -270,6 +513,13 @@ export async function decideBooking(
     }
     logs.push({ userId: actorUid, action: note ? `Từ chối: ${note}` : "Từ chối", at: Timestamp.now() });
     await updateBooking(id, { status: "rejected", approvals, logs });
+    await createNotifications([{
+      userId: booking.userId,
+      title: "Đăng ký của bạn bị từ chối",
+      body: note ? `"${booking.title}" bị từ chối. Lý do: ${note}` : `"${booking.title}" bị từ chối.`,
+      link: `/bookings?open=${id}`,
+      type: "booking_rejected",
+    }]);
     return { ok: true };
   }
 
@@ -294,6 +544,13 @@ export async function decideBooking(
     }
     logs.push({ userId: actorUid, action: "Duyệt hoàn tất", at: Timestamp.now() });
     await updateBooking(id, { status: "approved", approvals, logs });
+    await createNotifications([{
+      userId: booking.userId,
+      title: "Đăng ký của bạn đã được duyệt",
+      body: `"${booking.title}" đã được duyệt hoàn tất.`,
+      link: `/bookings?open=${id}`,
+      type: "booking_approved",
+    }]);
   } else {
     logs.push({ userId: actorUid, action: `Duyệt cấp ${myApproval?.level ?? ""}`, at: Timestamp.now() });
     await updateBooking(id, { approvals, logs });
@@ -310,6 +567,17 @@ export async function cancelBooking(id: string, actorUid: string): Promise<void>
     status: "cancelled",
     logs: [...booking.logs, { userId: actorUid, action: "Đã hủy đặt lịch", at: Timestamp.now() }],
   });
+  // Chỉ báo khi người HUỶ HỘ khác với người đặt (vd admin huỷ hộ) — tự huỷ
+  // đăng ký của chính mình không cần tự báo cho chính mình.
+  if (actorUid !== booking.userId) {
+    await createNotifications([{
+      userId: booking.userId,
+      title: "Đăng ký của bạn đã bị huỷ",
+      body: `"${booking.title}" đã bị huỷ.`,
+      link: `/bookings?open=${id}`,
+      type: "booking_cancelled",
+    }]);
+  }
 }
 
 export async function toggleFollow(id: string, userId: string): Promise<{ following: boolean }> {
@@ -369,6 +637,9 @@ export function toBookingResourceJson(r: BookingResourceWithId) {
     is_active: r.isActive,
     manager_id: r.managerId ?? null,
     follower_ids: r.followerIds ?? [],
+    registration_type: r.registrationType === "auto" ? "auto" : "approval",
+    attachments: r.attachments ?? [],
+    booking_window: r.bookingWindow ?? null,
   };
 }
 
@@ -404,6 +675,7 @@ export function toBookingJson(
     resource,
     user: userMap.get(b.userId) ?? null,
     attachments: b.attachments ?? [],
+    form_data: b.formData ?? [],
     followers: b.followerIds.map((id) => ({ id, name: userMap.get(id)?.full_name ?? id, title: userMap.get(id)?.title ?? null })),
     approvals: b.approvals.map((a) => ({
       approver_id: a.approverId,

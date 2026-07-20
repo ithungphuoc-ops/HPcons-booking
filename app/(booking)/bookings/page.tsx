@@ -5,11 +5,15 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Plus, RefreshCw, Clock3, CalendarClock, Star, Target, BarChart3, Settings2, ChevronLeft, ChevronRight } from 'lucide-react'
 import KpiCard from '@/components/booking/KpiCard'
-import BookingFormDialog, { type BookingGroupOption, type BookingResourceOption, type MemberOption } from '@/components/booking/BookingFormDialog'
-import BookingDetailDialog from '@/components/booking/BookingDetailDialog'
+import BookingFormDialog, { type BookingGroupOption, type BookingResourceOption, type MemberOption, type BookingPurposeOption, type EditableBooking } from '@/components/booking/BookingFormDialog'
+import BookingDetailDialog, { type BookingDetail } from '@/components/booking/BookingDetailDialog'
 import ManageResourcesPanel from '@/components/booking/ManageResourcesPanel'
 import MonthCalendar, { getMonthGridRange } from '@/components/booking/MonthCalendar'
+import WeekCalendar, { getWeekStart, getWeekRange } from '@/components/booking/WeekCalendar'
+import DayCalendar, { getDayRange } from '@/components/booking/DayCalendar'
 import QuickBookModal from '@/components/booking/QuickBookModal'
+
+type ViewMode = 'month' | 'week' | 'day'
 
 type BookingListItem = {
   id: string
@@ -48,6 +52,7 @@ function BookingsPageInner() {
   const searchParams = useSearchParams()
   const [groups, setGroups] = useState<GroupWithResources[]>([])
   const [members, setMembers] = useState<MemberOption[]>([])
+  const [purposes, setPurposes] = useState<BookingPurposeOption[]>([])
   const [bookings, setBookings] = useState<BookingListItem[]>([])
   const [isApprover, setIsApprover] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -57,24 +62,31 @@ function BookingsPageInner() {
   const [tab, setTab] = useState<TabKey>('schedule')
   const [groupFilter, setGroupFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [editingBooking, setEditingBooking] = useState<EditableBooking | null>(null)
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
   const [showManage, setShowManage] = useState(false)
 
-  // Lịch tháng thật ở Home: viewMonth = tháng đang xem, pickerDate = ngày vừa
-  // bấm trên lịch (mở QuickBookModal), quickPrefill = tài nguyên+giờ đã chọn
-  // qua modal nhanh để điền sẵn vào BookingFormDialog.
+  // Lịch: viewMode = Tháng/Tuần/Ngày (20/07/2026). viewMonth = tháng đang xem
+  // (chế độ Tháng), anchorDate = ngày mốc đang xem (chế độ Tuần/Ngày).
+  // pickerDate = ngày vừa bấm trên lịch (mở QuickBookModal), quickPrefill =
+  // tài nguyên+giờ đã chọn qua modal nhanh để điền sẵn vào BookingFormDialog.
+  const [viewMode, setViewMode] = useState<ViewMode>('month')
   const [viewMonth, setViewMonth] = useState(() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1) })
+  const [anchorDate, setAnchorDate] = useState(() => new Date())
   const [pickerDate, setPickerDate] = useState<string | null>(null)
   const [quickPrefill, setQuickPrefill] = useState<{ resourceId: string; slot: { start: string; end: string } } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { from, to } = getMonthGridRange(viewMonth)
+    const { from, to } = viewMode === 'month' ? getMonthGridRange(viewMonth)
+      : viewMode === 'week' ? getWeekRange(anchorDate)
+      : getDayRange(anchorDate)
     const bookingsUrl = `/api/bookings?from=${from.toISOString()}&to=${to.toISOString()}`
-    const [bRes, gRes, mRes] = await Promise.all([
+    const [bRes, gRes, mRes, pRes] = await Promise.all([
       fetch(bookingsUrl),
       fetch('/api/booking-resources'),
       fetch('/api/members'),
+      fetch('/api/booking-purposes'),
     ])
     const bJson = await bRes.json()
     setBookings(bJson.bookings ?? [])
@@ -83,8 +95,9 @@ function BookingsPageInner() {
     setMyUserId(bJson.myUserId ?? '')
     setGroups(await gRes.json())
     setMembers((await mRes.json()).map((u: { id: string; full_name: string; department?: string | null }) => ({ id: u.id, full_name: u.full_name, department: u.department })))
+    setPurposes(await pRes.json())
     setLoading(false)
-  }, [viewMonth])
+  }, [viewMonth, viewMode, anchorDate])
 
   useEffect(() => { load() }, [load])
 
@@ -100,6 +113,10 @@ function BookingsPageInner() {
   }, [searchParams])
 
   const resources = useMemo(() => groups.flatMap((g) => g.resources), [groups])
+  // "Quản lý tài nguyên" (per-resource, không phải admin toàn cục, 20/07/2026)
+  // — cũng được thấy nút "Quản lý tài nguyên" nếu đang quản lý ít nhất 1 tài
+  // nguyên, dù bản thân không phải admin.
+  const isResourceManagerOfAny = useMemo(() => resources.some((r) => r.manager_id === myUserId), [resources, myUserId])
 
   const mine = useMemo(() => bookings.filter((b) => b.user_id === myUserId), [bookings, myUserId])
   const following = useMemo(() => bookings.filter((b) => b.followers.some((f) => f.id === myUserId)), [bookings, myUserId])
@@ -116,9 +133,21 @@ function BookingsPageInner() {
   let shown = tabRows[tab]
   if (groupFilter) shown = shown.filter((b) => b.resource?.group_id === groupFilter)
 
-  function prevMonth() { setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1)) }
-  function nextMonth() { setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1)) }
-  function goToday() { const n = new Date(); setViewMonth(new Date(n.getFullYear(), n.getMonth(), 1)) }
+  function prevPeriod() {
+    if (viewMode === 'month') setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
+    else if (viewMode === 'week') setAnchorDate((d) => { const n = new Date(d); n.setDate(n.getDate() - 7); return n })
+    else setAnchorDate((d) => { const n = new Date(d); n.setDate(n.getDate() - 1); return n })
+  }
+  function nextPeriod() {
+    if (viewMode === 'month') setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))
+    else if (viewMode === 'week') setAnchorDate((d) => { const n = new Date(d); n.setDate(n.getDate() + 7); return n })
+    else setAnchorDate((d) => { const n = new Date(d); n.setDate(n.getDate() + 1); return n })
+  }
+  function goToday() {
+    const n = new Date()
+    setViewMonth(new Date(n.getFullYear(), n.getMonth(), 1))
+    setAnchorDate(n)
+  }
 
   function handleResourcePicked(resourceId: string) {
     if (!pickerDate) return
@@ -134,7 +163,7 @@ function BookingsPageInner() {
         <div className="flex items-center gap-2">
           <Link href="/bookings/purposes" className="hp-btn-ghost"><Target size={14} /> Mục đích</Link>
           <Link href="/bookings/reports" className="hp-btn-ghost"><BarChart3 size={14} /> Báo cáo</Link>
-          {isAdmin && (
+          {(isAdmin || isResourceManagerOfAny) && (
             <button onClick={() => setShowManage((v) => !v)} className="hp-btn-ghost"><Settings2 size={14} /> Quản lý tài nguyên</button>
           )}
           <button onClick={load} className="hp-btn-ghost"><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
@@ -144,9 +173,9 @@ function BookingsPageInner() {
         </div>
       </div>
 
-      {isAdmin && showManage && (
+      {(isAdmin || isResourceManagerOfAny) && showManage && (
         <div className="mb-5">
-          <ManageResourcesPanel groups={groups} members={members} onChanged={load} />
+          <ManageResourcesPanel groups={groups} members={members} onChanged={load} isAdmin={isAdmin} myUserId={myUserId} />
         </div>
       )}
 
@@ -172,33 +201,65 @@ function BookingsPageInner() {
         </select>
       </div>
 
-      <div className="mb-3 flex items-center gap-2">
-        <button onClick={prevMonth} className="hp-btn-ghost" style={{ padding: '8px' }}><ChevronLeft size={16} /></button>
-        <span className="min-w-[140px] text-center text-sm font-bold">Tháng {viewMonth.getMonth() + 1}, {viewMonth.getFullYear()}</span>
-        <button onClick={nextMonth} className="hp-btn-ghost" style={{ padding: '8px' }}><ChevronRight size={16} /></button>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <button onClick={prevPeriod} className="hp-btn-ghost" style={{ padding: '8px' }}><ChevronLeft size={16} /></button>
+        <span className="min-w-[140px] text-center text-sm font-bold">
+          {viewMode === 'month' && `Tháng ${viewMonth.getMonth() + 1}, ${viewMonth.getFullYear()}`}
+          {viewMode === 'week' && (() => { const { from, to } = getWeekRange(anchorDate); const last = new Date(to); last.setDate(last.getDate() - 1); return `${getWeekStart(anchorDate).toLocaleDateString('vi-VN')} – ${last.toLocaleDateString('vi-VN')}` })()}
+          {viewMode === 'day' && anchorDate.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}
+        </span>
+        <button onClick={nextPeriod} className="hp-btn-ghost" style={{ padding: '8px' }}><ChevronRight size={16} /></button>
         <button onClick={goToday} className="hp-btn-ghost">Hôm nay</button>
+        <div className="ml-auto flex gap-1 rounded-lg p-1" style={{ background: 'var(--hp-surface)', border: '1px solid var(--hp-border)' }}>
+          {(['month', 'week', 'day'] as ViewMode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => setViewMode(m)}
+              className="rounded-md px-3 py-1 text-xs font-semibold"
+              style={viewMode === m ? { background: 'var(--hp-primary)', color: '#fff' } : { color: 'var(--hp-text-secondary)' }}
+            >
+              {m === 'month' ? 'Tháng' : m === 'week' ? 'Tuần' : 'Ngày'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading ? (
         <div className="h-[420px] animate-pulse rounded-xl" style={{ background: 'var(--hp-surface)' }} />
-      ) : (
+      ) : viewMode === 'month' ? (
         <MonthCalendar
           month={viewMonth}
           bookings={shown}
           onDayClick={(dateStr) => setPickerDate(dateStr)}
           onBookingClick={setSelectedBookingId}
         />
+      ) : viewMode === 'week' ? (
+        <WeekCalendar
+          weekStart={getWeekStart(anchorDate)}
+          bookings={shown}
+          onDayClick={(dateStr) => setPickerDate(dateStr)}
+          onBookingClick={setSelectedBookingId}
+        />
+      ) : (
+        <DayCalendar
+          day={anchorDate}
+          bookings={shown}
+          onAddClick={() => setPickerDate(anchorDate.toISOString().slice(0, 10))}
+          onBookingClick={setSelectedBookingId}
+        />
       )}
 
-      {showForm && (
+      {(showForm || editingBooking) && (
         <BookingFormDialog
           groups={groups}
           resources={resources}
           members={members}
+          purposes={purposes}
           initialResourceId={quickPrefill?.resourceId}
           initialSlot={quickPrefill?.slot ?? null}
-          onClose={() => { setShowForm(false); setQuickPrefill(null) }}
-          onSaved={() => { setShowForm(false); setQuickPrefill(null); load() }}
+          editingBooking={editingBooking}
+          onClose={() => { setShowForm(false); setQuickPrefill(null); setEditingBooking(null) }}
+          onSaved={() => { setShowForm(false); setQuickPrefill(null); setEditingBooking(null); load() }}
         />
       )}
       {selectedBookingId && (
@@ -208,6 +269,23 @@ function BookingsPageInner() {
           isAdmin={isAdmin}
           onClose={() => setSelectedBookingId(null)}
           onUpdated={load}
+          onEdit={(detail: BookingDetail) => {
+            setEditingBooking({
+              id: detail.id,
+              resource_id: detail.resource_id,
+              title: detail.title,
+              purpose_id: detail.purpose_id,
+              purpose_text: detail.purpose_id ? null : detail.purpose_name,
+              form_data: detail.form_data,
+              note: detail.note,
+              destination: detail.destination,
+              passengers: detail.passengers,
+              quantity: detail.quantity,
+              start_at: detail.start_at,
+              end_at: detail.end_at,
+            })
+            setSelectedBookingId(null)
+          }}
         />
       )}
       {pickerDate && (

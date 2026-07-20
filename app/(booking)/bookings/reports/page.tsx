@@ -2,37 +2,82 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, BarChart3 } from 'lucide-react'
+import { ArrowLeft, BarChart3, Download } from 'lucide-react'
 import EmptyState from '@/components/booking/EmptyState'
 
 type BookingRow = {
+  user_id: string
   status: string
   start_at: string
   resource: { id: string; group_id: string; name: string; color: string } | null
 }
 type GroupRow = { id: string; name: string; icon: string }
+type ResourceOption = { id: string; group_id: string; name: string }
+type MemberOption = { id: string; full_name: string; department: string | null }
 
 const STATUS_LABELS: Record<string, string> = { pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Từ chối', cancelled: 'Đã hủy' }
 const STATUS_TONE: Record<string, string> = { pending: 'warning', approved: 'success', rejected: 'danger', cancelled: 'neutral' }
 const PIE_COLORS = ['#096AA7', '#60BB46', '#FFA726', '#E53935', '#8b5cf6', '#06b6d4', '#f97316']
 
+function daysAgoStr(days: number) {
+  const d = new Date(); d.setDate(d.getDate() - days)
+  return d.toISOString().slice(0, 10)
+}
+function todayStr() { return new Date().toISOString().slice(0, 10) }
+
 export default function BookingReportsPage() {
   const [bookings, setBookings] = useState<BookingRow[]>([])
   const [groups, setGroups] = useState<GroupRow[]>([])
+  const [resources, setResources] = useState<ResourceOption[]>([])
+  const [members, setMembers] = useState<MemberOption[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Bộ lọc báo cáo (20/07/2026) — mặc định 30 ngày gần nhất như hành vi cũ.
+  const [dateFrom, setDateFrom] = useState(() => daysAgoStr(30))
+  const [dateTo, setDateTo] = useState(() => todayStr())
   const [groupFilter, setGroupFilter] = useState('')
+  const [resourceFilter, setResourceFilter] = useState('')
+  const [userFilter, setUserFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [deptFilter, setDeptFilter] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [bRes, gRes] = await Promise.all([fetch('/api/bookings'), fetch('/api/booking-resources')])
+    const params = new URLSearchParams({
+      from: new Date(`${dateFrom}T00:00:00`).toISOString(),
+      to: new Date(`${dateTo}T23:59:59`).toISOString(),
+    })
+    if (resourceFilter) params.set('resource_id', resourceFilter)
+    if (userFilter) params.set('user_id', userFilter)
+    if (statusFilter) params.set('status', statusFilter)
+
+    const [bRes, gRes, mRes] = await Promise.all([
+      fetch(`/api/bookings?${params.toString()}`),
+      fetch('/api/booking-resources'),
+      fetch('/api/members'),
+    ])
     setBookings((await bRes.json()).bookings ?? [])
-    setGroups((await gRes.json()).map((g: GroupRow) => ({ id: g.id, name: g.name, icon: g.icon })))
+    const groupsJson: (GroupRow & { resources: ResourceOption[] })[] = await gRes.json()
+    setGroups(groupsJson.map((g) => ({ id: g.id, name: g.name, icon: g.icon })))
+    setResources(groupsJson.flatMap((g) => g.resources.map((r) => ({ id: r.id, group_id: g.id, name: r.name }))))
+    setMembers((await mRes.json()).map((u: { id: string; full_name: string; department?: string | null }) => ({ id: u.id, full_name: u.full_name, department: u.department ?? null })))
     setLoading(false)
-  }, [])
+  }, [dateFrom, dateTo, resourceFilter, userFilter, statusFilter])
 
   useEffect(() => { load() }, [load])
 
-  const filtered = groupFilter ? bookings.filter((b) => b.resource?.group_id === groupFilter) : bookings
+  const memberDept = useMemo(() => new Map(members.map((m) => [m.id, m.department])), [members])
+  const departments = useMemo(() => Array.from(new Set(members.map((m) => m.department).filter((d): d is string => !!d))).sort(), [members])
+
+  // Nhóm/tài nguyên lọc server-side đã áp dụng resourceFilter; groupFilter và
+  // deptFilter lọc thêm ở client (groupFilter vì API chỉ nhận resource_id cụ
+  // thể, deptFilter vì phòng ban không có field trực tiếp trên booking — xem
+  // design.md Decision 1 của change booking-reports-export-polish).
+  const filtered = bookings.filter((b) => {
+    if (groupFilter && b.resource?.group_id !== groupFilter) return false
+    if (deptFilter && memberDept.get(b.user_id) !== deptFilter) return false
+    return true
+  })
 
   const byStatus = useMemo(() => {
     const map = new Map<string, number>()
@@ -72,23 +117,66 @@ export default function BookingReportsPage() {
 
   const total = filtered.length
 
+  function exportExcel() {
+    const params = new URLSearchParams({
+      from: new Date(`${dateFrom}T00:00:00`).toISOString(),
+      to: new Date(`${dateTo}T23:59:59`).toISOString(),
+    })
+    if (resourceFilter) params.set('resource_id', resourceFilter)
+    else if (groupFilter) params.set('group_id', groupFilter)
+    if (userFilter) params.set('user_id', userFilter)
+    if (statusFilter) params.set('status', statusFilter)
+    if (deptFilter) {
+      const ids = members.filter((m) => m.department === deptFilter).map((m) => m.id)
+      params.set('user_ids', ids.join(','))
+    }
+    window.open(`/api/bookings/export?${params.toString()}`, '_blank')
+  }
+
   return (
     <div className="mx-auto max-w-5xl p-4 sm:p-6" style={{ color: 'var(--hp-text-primary)' }}>
       <Link href="/bookings" className="mb-3 inline-flex items-center gap-1 text-sm" style={{ color: 'var(--hp-text-desc)' }}>
         <ArrowLeft size={14} /> Quay lại Booking
       </Link>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-bold">Báo cáo Booking</h1>
-        <select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} className="hp-input w-auto">
+        <button onClick={exportExcel} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white" style={{ background: 'var(--hp-primary)' }}>
+          <Download size={14} /> Xuất Excel
+        </button>
+      </div>
+
+      <div className="mb-5 flex flex-wrap items-center gap-2 rounded-xl p-3" style={{ background: 'var(--hp-surface)', border: '1px solid var(--hp-border)' }}>
+        <div className="flex items-center gap-1.5">
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="hp-input w-auto" />
+          <span className="text-xs" style={{ color: 'var(--hp-text-desc)' }}>đến</span>
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="hp-input w-auto" />
+        </div>
+        <select value={groupFilter} onChange={(e) => { setGroupFilter(e.target.value); setResourceFilter('') }} className="hp-input w-auto">
           <option value="">Tất cả nhóm</option>
           {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+        </select>
+        <select value={resourceFilter} onChange={(e) => setResourceFilter(e.target.value)} className="hp-input w-auto">
+          <option value="">Tất cả tài nguyên</option>
+          {resources.filter((r) => !groupFilter || r.group_id === groupFilter).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+        </select>
+        <select value={userFilter} onChange={(e) => setUserFilter(e.target.value)} className="hp-input w-auto">
+          <option value="">Tất cả người đặt</option>
+          {members.map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
+        </select>
+        <select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} className="hp-input w-auto">
+          <option value="">Tất cả phòng ban</option>
+          {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+        </select>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="hp-input w-auto">
+          <option value="">Mọi trạng thái</option>
+          {Object.entries(STATUS_LABELS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
         </select>
       </div>
 
       {loading ? (
         <div className="text-sm" style={{ color: 'var(--hp-text-desc)' }}>Đang tải...</div>
       ) : total === 0 ? (
-        <EmptyState icon={BarChart3} title="Chưa có dữ liệu" description="Chưa có lượt đặt lịch nào trong 30 ngày gần đây để thống kê." />
+        <EmptyState icon={BarChart3} title="Chưa có dữ liệu" description="Không có lượt đặt lịch nào khớp bộ lọc đang chọn." />
       ) : (
         <>
           <div className="mb-5 grid gap-4 sm:grid-cols-2">

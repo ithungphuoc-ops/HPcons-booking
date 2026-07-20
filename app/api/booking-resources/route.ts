@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireSession, requireAdmin, isAdmin } from '@/lib/session'
+import { requireSession, requireAdmin } from '@/lib/session'
 import {
   listBookingGroups,
   listBookingResources,
@@ -7,17 +7,22 @@ import {
   createBookingResource,
   toBookingGroupJson,
   toBookingResourceJson,
+  parseBookingWindow,
 } from '@/lib/firestore/bookings'
 
 // Danh sách nhóm + tài nguyên lồng nhau (mọi người xem được để đặt lịch —
-// mặc định chỉ trả mục đang bật). `?includeInactive=1` chỉ có tác dụng với
-// Admin/Owner — dùng cho panel "Quản lý tài nguyên" để còn thấy mục đã tắt
-// và bật lại được; người đặt lịch bình thường luôn chỉ thấy mục đang bật.
+// mặc định chỉ trả mục đang bật). `?includeInactive=1` dùng cho panel "Quản
+// lý tài nguyên" để còn thấy mục đã tắt và bật lại được — cho phép MỌI
+// session đăng nhập (không chỉ admin, 20/07/2026) vì "Quản lý tài nguyên"
+// (managerId, không phải admin toàn cục) cũng cần thấy tài nguyên mình quản
+// lý dù đang đóng để mở lại; dữ liệu tài nguyên đã tắt không nhạy cảm, quyền
+// SỬA vẫn được kiểm tra riêng ở route PATCH. Người đặt lịch bình thường
+// (không gọi kèm tham số này) luôn chỉ thấy mục đang bật.
 export async function GET(req: Request) {
   const session = await requireSession().catch(() => null)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const wantsInactive = new URL(req.url).searchParams.get('includeInactive') === '1' && isAdmin(session)
+  const wantsInactive = new URL(req.url).searchParams.get('includeInactive') === '1'
   const [groups, resources] = await Promise.all([listBookingGroups(wantsInactive), listBookingResources(wantsInactive)])
   const result = groups.map((g) => ({
     ...toBookingGroupJson(g),
@@ -59,6 +64,8 @@ export async function POST(req: Request) {
       sortOrder: resources.length,
       managerId: body.manager_id || null,
       followerIds: Array.isArray(body.follower_ids) ? body.follower_ids : [],
+      registrationType: body.registration_type === 'auto' ? 'auto' : 'approval',
+      bookingWindow: parseBookingWindow(body.booking_window),
     })
     return NextResponse.json(toBookingResourceJson(resource))
   }

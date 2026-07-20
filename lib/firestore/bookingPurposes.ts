@@ -1,7 +1,7 @@
 import "server-only";
 import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
-import type { FirestoreBookingPurpose } from "./types";
+import type { BookingFormDataEntry, BookingFormField, FirestoreBookingPurpose } from "./types";
 
 const COLLECTION = "bookingPurposes";
 
@@ -35,6 +35,19 @@ export async function renameBookingPurpose(id: string, name: string): Promise<vo
   await ref.update({ name });
 }
 
+export async function getBookingPurposeById(id: string): Promise<BookingPurposeWithId | null> {
+  const snap = await adminDb.collection(COLLECTION).doc(id).get();
+  if (!snap.exists) return null;
+  return { id: snap.id, ...(snap.data() as FirestoreBookingPurpose) };
+}
+
+export async function updateBookingPurposeFormSchema(id: string, formSchema: BookingFormField[]): Promise<void> {
+  const ref = adminDb.collection(COLLECTION).doc(id);
+  const snap = await ref.get();
+  if (!snap.exists) throw new Error("Không tìm thấy mục đích");
+  await ref.update({ formSchema });
+}
+
 export async function toggleBookingPurpose(id: string): Promise<boolean> {
   const ref = adminDb.collection(COLLECTION).doc(id);
   const snap = await ref.get();
@@ -54,6 +67,44 @@ export async function countBookingUsageByPurpose(): Promise<Map<string, number>>
   return counts;
 }
 
+export class BookingFormValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BookingFormValidationError";
+  }
+}
+
+// Validate + xây snapshot formData theo ĐÚNG formSchema của mục đích tại
+// thời điểm gọi — dùng chung cho tạo (POST /api/bookings) và sửa (PATCH
+// .../[id] action=edit), không tin việc client đã validate đủ (20/07/2026).
+export async function buildValidatedFormData(
+  purposeId: string | null | undefined,
+  rawFormData: { fieldId?: string; label?: string; type?: string; value?: unknown }[],
+): Promise<BookingFormDataEntry[]> {
+  if (!purposeId) return [];
+  const purpose = await getBookingPurposeById(purposeId);
+  const schema = purpose?.formSchema ?? [];
+  const byId = new Map(rawFormData.map((f) => [f.fieldId, f]));
+
+  for (const field of schema) {
+    const value = byId.get(field.id)?.value;
+    const empty = value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
+    if (field.required && empty) throw new BookingFormValidationError(`Vui lòng điền "${field.label}"`);
+  }
+
+  return schema
+    .filter((field) => {
+      const value = byId.get(field.id)?.value;
+      return !(value === undefined || value === null || value === "");
+    })
+    .map((field) => ({
+      fieldId: field.id,
+      label: field.label,
+      type: field.type,
+      value: byId.get(field.id)!.value as BookingFormDataEntry["value"],
+    }));
+}
+
 export function toBookingPurposeJson(p: BookingPurposeWithId, creatorName: string | null, count: number) {
   return {
     id: p.id,
@@ -61,5 +112,6 @@ export function toBookingPurposeJson(p: BookingPurposeWithId, creatorName: strin
     is_active: p.isActive,
     creator_name: creatorName,
     count,
+    form_schema: p.formSchema ?? [],
   };
 }
