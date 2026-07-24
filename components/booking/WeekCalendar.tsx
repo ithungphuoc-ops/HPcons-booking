@@ -70,19 +70,19 @@ export default function WeekCalendar({
           <div
             key={dateStr}
             onClick={() => onDayClick(dateStr)}
-            className="flex min-h-[220px] cursor-pointer flex-col gap-1 p-2"
+            className="flex min-h-[300px] cursor-pointer flex-col gap-1.5 p-2.5"
             style={{ background: isToday ? 'var(--hp-primary-bg)' : 'var(--hp-card)' }}
           >
-            <div className="mb-1 text-[11px] font-bold uppercase" style={{ color: isToday ? 'var(--hp-primary)' : 'var(--hp-text-desc)' }}>
+            <div className="mb-1 text-sm font-bold uppercase" style={{ color: isToday ? 'var(--hp-primary)' : 'var(--hp-text-desc)' }}>
               {WEEKDAYS[(d.getDay() + 6) % 7]} · {d.getDate()}/{d.getMonth() + 1}
             </div>
-            <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
+            <div className="flex flex-1 flex-col gap-1.5 overflow-y-auto">
               {dayBookings.map((b) => (
                 <button
                   key={b.id}
                   type="button"
                   onClick={(e) => { e.stopPropagation(); onBookingClick(b.id) }}
-                  className="truncate rounded px-1.5 py-1 text-left text-[11px] font-medium text-white"
+                  className="truncate rounded-md px-2 py-1.5 text-left text-[13px] font-semibold text-white"
                   style={{ background: b.resource?.color ?? 'var(--hp-primary)' }}
                   title={`${b.start_at.slice(11, 16)} ${b.title}`}
                 >

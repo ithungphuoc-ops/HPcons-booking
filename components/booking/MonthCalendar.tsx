@@ -79,7 +79,7 @@ export default function MonthCalendar({
     <div>
       <div className="hidden sm:grid sm:grid-cols-7">
         {WEEKDAYS.map((w) => (
-          <div key={w} className="px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--hp-text-desc)' }}>
+          <div key={w} className="px-2 py-2 text-center text-sm font-bold uppercase tracking-wide" style={{ color: 'var(--hp-text-desc)' }}>
             {w}
           </div>
         ))}
@@ -91,14 +91,14 @@ export default function MonthCalendar({
           const inMonth = d.getMonth() === month.getMonth()
           const isToday = dateStr === todayStr
           const dayBookings = bookingsByDay.get(dateStr) ?? []
-          const visible = dayBookings.slice(0, 3)
+          const visible = dayBookings.slice(0, 5)
           const extra = dayBookings.length - visible.length
 
           return (
             <div
               key={dateStr}
               onClick={() => onDayClick(dateStr)}
-              className="flex min-h-[64px] cursor-pointer flex-col gap-1 p-1.5 transition hover:opacity-90 sm:min-h-[104px]"
+              className="flex min-h-[96px] cursor-pointer flex-col gap-1.5 p-2 transition hover:opacity-90 sm:min-h-[168px]"
               style={{
                 background: isToday ? 'var(--hp-primary-bg)' : 'var(--hp-card)',
                 backgroundImage: !inMonth
@@ -108,7 +108,7 @@ export default function MonthCalendar({
             >
               <div className="flex items-center justify-between sm:block">
                 <span
-                  className="inline-flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold"
                   style={{
                     background: isToday ? 'var(--hp-primary)' : 'transparent',
                     color: isToday ? '#fff' : inMonth ? 'var(--hp-text-primary)' : 'var(--hp-text-desc)',
@@ -116,18 +116,18 @@ export default function MonthCalendar({
                 >
                   {d.getDate()}
                 </span>
-                <span className="text-[11px] font-medium sm:hidden" style={{ color: 'var(--hp-text-desc)' }}>
+                <span className="text-xs font-medium sm:hidden" style={{ color: 'var(--hp-text-desc)' }}>
                   {WEEKDAYS[(d.getDay() + 6) % 7]}
                 </span>
               </div>
 
-              <div className="flex flex-1 flex-col gap-1">
+              <div className="flex flex-1 flex-col gap-1.5">
                 {visible.map((b) => (
                   <button
                     key={b.id}
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onBookingClick(b.id) }}
-                    className="truncate rounded px-1.5 py-0.5 text-left text-[11px] font-medium text-white"
+                    className="truncate rounded-md px-2 py-1 text-left text-[13px] font-semibold text-white"
                     style={{ background: b.resource?.color ?? 'var(--hp-primary)' }}
                     title={`${b.start_at.slice(11, 16)} ${b.title}`}
                   >
@@ -135,7 +135,7 @@ export default function MonthCalendar({
                   </button>
                 ))}
                 {extra > 0 && (
-                  <span className="text-[11px] font-medium" style={{ color: 'var(--hp-text-desc)' }}>
+                  <span className="text-xs font-semibold" style={{ color: 'var(--hp-text-desc)' }}>
                     +{extra} khác
                   </span>
                 )}
