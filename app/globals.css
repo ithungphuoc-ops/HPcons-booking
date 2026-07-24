@@ -75,6 +75,12 @@
   --hp-neutral-bg: color-mix(in srgb, var(--hp-neutral) 18%, transparent);
   --hp-danger-soft: color-mix(in srgb, var(--hp-danger) 60%, #fff);
   --hp-danger-bg: color-mix(in srgb, var(--hp-danger) 18%, transparent);
+
+  /* --booking-bg là nền chính của toàn trang Booking (app/(booking)/layout.tsx)
+     — các token --booking-sidebar/primary/... khác giữ NGUYÊN cố định (thẩm
+     mỹ sidebar riêng, không đổi theo theme), chỉ riêng nền trang cần đổi theo
+     sáng/tối (20/07/2026) để không bị "nền sáng cứng" khi bật dark mode. */
+  --booking-bg: #0F1923;
 }
 
 @theme inline {

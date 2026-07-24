@@ -23,7 +23,7 @@ export type BookingDetail = {
   end_at: string
   status: string
   resource: { name: string; description?: string | null; manager_name?: string | null; followers?: { id: string; name: string }[] } | null
-  user: { full_name: string; email: string } | null
+  user: { full_name: string; email: string; department?: string | null } | null
   followers: { id: string; name: string; title?: string | null }[]
   attachments?: { name: string; url: string }[]
   form_data?: { fieldId: string; label: string; type: string; value: unknown }[]
@@ -154,7 +154,11 @@ export default function BookingDetailDialog({
               )}
 
               <Section title="THÔNG TIN">
-                <InfoRow icon={<Users2 size={14} />} label="Người tạo" value={d.user?.full_name} />
+                <InfoRow
+                  icon={<Users2 size={14} />}
+                  label="Người tạo"
+                  value={d.user?.department ? `${d.user.full_name} · ${d.user.department}` : d.user?.full_name}
+                />
                 <div className="mt-1.5 grid grid-cols-2 gap-2">
                   <div>
                     <div className="text-xs" style={{ color: 'var(--hp-text-desc)' }}>Bắt đầu</div>

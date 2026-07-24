@@ -3,7 +3,8 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { Plus, RefreshCw, Clock3, CalendarClock, Star, Target, BarChart3, Settings2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, RefreshCw, Clock3, CalendarClock, Star, Target, BarChart3, Settings2, ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import ThemeToggle from '@/components/booking/ThemeToggle'
 import KpiCard from '@/components/booking/KpiCard'
 import BookingFormDialog, { type BookingGroupOption, type BookingResourceOption, type MemberOption, type BookingPurposeOption, type EditableBooking } from '@/components/booking/BookingFormDialog'
 import BookingDetailDialog, { type BookingDetail } from '@/components/booking/BookingDetailDialog'
@@ -25,18 +26,22 @@ type BookingListItem = {
   end_at: string
   status: string
   resource: { id: string; group_id: string; name: string; color: string } | null
-  user: { full_name: string; email: string } | null
+  user: { full_name: string; email: string; department?: string | null } | null
   followers: { id: string; name: string }[]
   approvals: { approver_id: string; level: number; status: string }[]
 }
 
 type GroupWithResources = BookingGroupOption & { description: string | null; resources: BookingResourceOption[] }
 
+// "Tất cả" (mặc định) thay cho "Lịch đã duyệt" cũ (20/07/2026) — gộp cả
+// pending + approved, hiển thị cho MỌI nhân viên để tránh 2 phòng ban đặt
+// trùng giờ mà không biết tài nguyên đã có người giữ chỗ (dù đang chờ duyệt).
+// Thứ tự tab phỏng theo booking.base.vn: Của tôi, Theo dõi, Chờ duyệt, Tất cả.
 const TABS = [
-  { key: 'sent_to_me', label: 'Chờ duyệt' },
-  { key: 'schedule', label: 'Lịch đã duyệt' },
   { key: 'mine', label: 'Của tôi' },
   { key: 'following', label: 'Theo dõi' },
+  { key: 'sent_to_me', label: 'Chờ duyệt' },
+  { key: 'all', label: 'Tất cả' },
 ] as const
 type TabKey = typeof TABS[number]['key']
 
@@ -59,8 +64,9 @@ function BookingsPageInner() {
   const [myUserId, setMyUserId] = useState('')
   const [loading, setLoading] = useState(true)
 
-  const [tab, setTab] = useState<TabKey>('schedule')
+  const [tab, setTab] = useState<TabKey>('all')
   const [groupFilter, setGroupFilter] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingBooking, setEditingBooking] = useState<EditableBooking | null>(null)
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
@@ -128,6 +134,9 @@ function BookingsPageInner() {
   const following = useMemo(() => bookings.filter((b) => b.followers.some((f) => f.id === myUserId)), [bookings, myUserId])
   const sentToMe = useMemo(() => bookings.filter((b) => b.approvals.some((a) => a.approver_id === myUserId && a.status === 'pending')), [bookings, myUserId])
   const approved = useMemo(() => bookings.filter((b) => b.status === 'approved'), [bookings])
+  // "Tất cả" = pending + approved (loại rejected/cancelled — không còn chiếm
+  // giờ tài nguyên nữa) — xem tab "all" ở trên.
+  const allActive = useMemo(() => bookings.filter((b) => b.status === 'pending' || b.status === 'approved'), [bookings])
   const thisWeekApproved = useMemo(() => {
     const now = new Date()
     const start = new Date(now); start.setDate(now.getDate() - now.getDay()); start.setHours(0, 0, 0, 0)
@@ -135,9 +144,18 @@ function BookingsPageInner() {
     return approved.filter((b) => { const s = new Date(b.start_at); return s >= start && s < end })
   }, [approved])
 
-  const tabRows: Record<TabKey, BookingListItem[]> = { sent_to_me: sentToMe, schedule: approved, mine, following }
+  const tabRows: Record<TabKey, BookingListItem[]> = { sent_to_me: sentToMe, all: allActive, mine, following }
   let shown = tabRows[tab]
   if (groupFilter) shown = shown.filter((b) => b.resource?.group_id === groupFilter)
+  if (searchQuery.trim()) {
+    const q = searchQuery.trim().toLowerCase()
+    shown = shown.filter((b) =>
+      b.title.toLowerCase().includes(q) ||
+      (b.resource?.name.toLowerCase().includes(q) ?? false) ||
+      (b.user?.full_name.toLowerCase().includes(q) ?? false) ||
+      (b.user?.department?.toLowerCase().includes(q) ?? false),
+    )
+  }
 
   function prevPeriod() {
     if (viewMode === 'month') setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
@@ -167,12 +185,22 @@ function BookingsPageInner() {
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Booking</h1>
         <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--hp-text-desc)' }} />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm kiếm đăng ký..."
+              className="hp-input w-auto py-2 pl-8"
+            />
+          </div>
           <Link href="/bookings/purposes" className="hp-btn-ghost"><Target size={14} /> Mục đích</Link>
           <Link href="/bookings/reports" className="hp-btn-ghost"><BarChart3 size={14} /> Báo cáo</Link>
           {(isAdmin || isResourceManagerOfAny) && (
             <button onClick={() => setShowManage((v) => !v)} className="hp-btn-ghost"><Settings2 size={14} /> Quản lý tài nguyên</button>
           )}
           <button onClick={load} className="hp-btn-ghost"><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
+          <ThemeToggle />
           <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ background: 'var(--hp-primary)' }}>
             <Plus size={15} /> Đặt lịch
           </button>

@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { Plus } from 'lucide-react'
 import type { CalendarBooking } from './MonthCalendar'
+import { STATUS_BG_SOFT, STATUS_LABEL, STATUS_TEXT_SOFT } from './statusColors'
 
 export function getDayRange(date: Date): { from: Date; to: Date } {
   const from = new Date(date); from.setHours(0, 0, 0, 0)
@@ -50,13 +51,21 @@ export default function DayCalendar({
               key={b.id}
               type="button"
               onClick={() => onBookingClick(b.id)}
-              className="flex items-center gap-3 rounded-lg px-4 py-3 text-left text-base hover:opacity-90"
-              style={{ background: 'var(--hp-neutral-bg)' }}
+              className="flex items-center gap-3 rounded-lg py-3 pl-3 pr-4 text-left text-base hover:opacity-90"
+              style={{
+                background: STATUS_BG_SOFT[b.status] ?? 'var(--hp-neutral-bg)',
+                borderLeft: `4px solid ${b.resource?.color ?? 'var(--hp-primary)'}`,
+              }}
             >
-              <span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ background: b.resource?.color ?? 'var(--hp-primary)' }} />
               <span className="w-[130px] shrink-0 font-bold">{b.start_at.slice(11, 16)}–{b.end_at.slice(11, 16)}</span>
               <span className="min-w-0 flex-1 truncate font-medium">{b.title}</span>
               <span className="shrink-0 text-sm" style={{ color: 'var(--hp-text-desc)' }}>{b.resource?.name}</span>
+              {b.user?.department && (
+                <span className="shrink-0 text-sm" style={{ color: 'var(--hp-text-desc)' }}>· {b.user.department}</span>
+              )}
+              <span className="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold" style={{ color: STATUS_TEXT_SOFT[b.status] ?? 'var(--hp-text-desc)', background: STATUS_BG_SOFT[b.status] ?? 'var(--hp-neutral-bg)' }}>
+                {STATUS_LABEL[b.status] ?? b.status}
+              </span>
             </button>
           ))}
         </div>

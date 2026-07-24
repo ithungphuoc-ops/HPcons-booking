@@ -645,7 +645,7 @@ export function toBookingResourceJson(r: BookingResourceWithId) {
 
 export function toBookingJson(
   b: BookingWithId,
-  userMap: Map<string, { full_name: string; email: string; title?: string | null }>,
+  userMap: Map<string, { full_name: string; email: string; title?: string | null; department?: string | null }>,
   resourceMap: Map<string, { id: string; group_id: string; name: string; color: string; description?: string | null; manager_id?: string | null; follower_ids?: string[] }>,
   purposeMap: Map<string, string>,
 ) {

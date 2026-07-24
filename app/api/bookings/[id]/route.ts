@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Timestamp } from 'firebase-admin/firestore'
 import { requireSession, isAdmin } from '@/lib/session'
+import { adminDb } from '@/lib/firebase/admin'
 import { listAllUsers } from '@/lib/firestore/users'
 import { listBookingPurposes, buildValidatedFormData, BookingFormValidationError } from '@/lib/firestore/bookingPurposes'
 import {
@@ -25,12 +26,18 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const booking = await getBookingById(id)
   if (!booking) return NextResponse.json({ error: 'Không tìm thấy' }, { status: 404 })
 
-  const [resources, users, purposes] = await Promise.all([
+  const [resources, users, purposes, deptSnap] = await Promise.all([
     listBookingResources(true),
     listAllUsers(),
     listBookingPurposes(true),
+    adminDb.collection('departments').get(),
   ])
-  const userMap = new Map(users.map((u) => [u.id, { full_name: u.fullName, email: u.email, title: u.title }]))
+  const deptName = new Map<string, string>()
+  deptSnap.forEach((d) => deptName.set(d.id, (d.data().name as string) ?? ''))
+  const userMap = new Map(users.map((u) => [
+    u.id,
+    { full_name: u.fullName, email: u.email, title: u.title, department: u.departmentId ? deptName.get(u.departmentId) ?? null : null },
+  ]))
   const resourceMap = new Map(resources.map((r) => [r.id, { id: r.id, group_id: r.groupId, name: r.name, color: r.color, description: r.description, manager_id: r.managerId ?? null, follower_ids: r.followerIds ?? [] }]))
   const purposeMap = new Map(purposes.map((p) => [p.id, p.name]))
 

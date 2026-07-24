@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 import type { CalendarBooking } from './MonthCalendar'
+import { chipStyle, STATUS_LABEL } from './statusColors'
 
 const WEEKDAYS = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ Nhật']
 
@@ -83,8 +84,8 @@ export default function WeekCalendar({
                   type="button"
                   onClick={(e) => { e.stopPropagation(); onBookingClick(b.id) }}
                   className="truncate rounded-md px-2 py-1.5 text-left text-[13px] font-semibold text-white"
-                  style={{ background: b.resource?.color ?? 'var(--hp-primary)' }}
-                  title={`${b.start_at.slice(11, 16)} ${b.title}`}
+                  style={chipStyle(b.status, b.resource?.color)}
+                  title={`${b.start_at.slice(11, 16)} ${b.title} · ${b.resource?.name ?? ''}${b.user?.department ? ' · ' + b.user.department : ''} (${STATUS_LABEL[b.status] ?? b.status})`}
                 >
                   {b.start_at.slice(11, 16)} {b.title}
                 </button>

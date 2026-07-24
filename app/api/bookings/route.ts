@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Timestamp } from 'firebase-admin/firestore'
 import { requireSession, isAdmin } from '@/lib/session'
+import { adminDb } from '@/lib/firebase/admin'
 import { listAllUsers } from '@/lib/firestore/users'
 import { listBookingPurposes, buildValidatedFormData, BookingFormValidationError } from '@/lib/firestore/bookingPurposes'
 import {
@@ -33,14 +34,23 @@ export async function GET(req: Request) {
     ? listBookingsInRange(Timestamp.fromDate(new Date(from)), Timestamp.fromDate(new Date(to)))
     : listBookingsSince(Timestamp.fromDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)))
 
-  const [resources, bookings, users, purposes] = await Promise.all([
+  const [resources, bookings, users, purposes, deptSnap] = await Promise.all([
     listBookingResources(),
     bookingsPromise,
     listAllUsers(),
     listBookingPurposes(true),
+    adminDb.collection('departments').get(),
   ])
 
-  const userMap = new Map(users.map((u) => [u.id, { full_name: u.fullName, email: u.email, title: u.title }]))
+  // Tên phòng ban của người đặt (20/07/2026) — để hiển thị trên lịch, tránh
+  // 2 phòng ban đặt trùng giờ mà không biết ai đã giữ chỗ trước. Cùng cách
+  // làm với /api/members (join qua departmentId, không thêm collection mới).
+  const deptName = new Map<string, string>()
+  deptSnap.forEach((d) => deptName.set(d.id, (d.data().name as string) ?? ''))
+  const userMap = new Map(users.map((u) => [
+    u.id,
+    { full_name: u.fullName, email: u.email, title: u.title, department: u.departmentId ? deptName.get(u.departmentId) ?? null : null },
+  ]))
   const resourceMap = new Map(resources.map((r) => [r.id, { id: r.id, group_id: r.groupId, name: r.name, color: r.color, description: r.description, manager_id: r.managerId ?? null, follower_ids: r.followerIds ?? [] }]))
   const purposeMap = new Map(purposes.map((p) => [p.id, p.name]))
 
