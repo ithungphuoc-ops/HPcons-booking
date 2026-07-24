@@ -43,25 +43,28 @@ export default function BookingReportsPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const params = new URLSearchParams({
-      from: new Date(`${dateFrom}T00:00:00`).toISOString(),
-      to: new Date(`${dateTo}T23:59:59`).toISOString(),
-    })
-    if (resourceFilter) params.set('resource_id', resourceFilter)
-    if (userFilter) params.set('user_id', userFilter)
-    if (statusFilter) params.set('status', statusFilter)
+    try {
+      const params = new URLSearchParams({
+        from: new Date(`${dateFrom}T00:00:00`).toISOString(),
+        to: new Date(`${dateTo}T23:59:59`).toISOString(),
+      })
+      if (resourceFilter) params.set('resource_id', resourceFilter)
+      if (userFilter) params.set('user_id', userFilter)
+      if (statusFilter) params.set('status', statusFilter)
 
-    const [bRes, gRes, mRes] = await Promise.all([
-      fetch(`/api/bookings?${params.toString()}`),
-      fetch('/api/booking-resources'),
-      fetch('/api/members'),
-    ])
-    setBookings((await bRes.json()).bookings ?? [])
-    const groupsJson: (GroupRow & { resources: ResourceOption[] })[] = await gRes.json()
-    setGroups(groupsJson.map((g) => ({ id: g.id, name: g.name, icon: g.icon })))
-    setResources(groupsJson.flatMap((g) => g.resources.map((r) => ({ id: r.id, group_id: g.id, name: r.name }))))
-    setMembers((await mRes.json()).map((u: { id: string; full_name: string; department?: string | null }) => ({ id: u.id, full_name: u.full_name, department: u.department ?? null })))
-    setLoading(false)
+      const [bRes, gRes, mRes] = await Promise.all([
+        fetch(`/api/bookings?${params.toString()}`),
+        fetch('/api/booking-resources'),
+        fetch('/api/members'),
+      ])
+      setBookings((await bRes.json()).bookings ?? [])
+      const groupsJson: (GroupRow & { resources: ResourceOption[] })[] = await gRes.json()
+      setGroups(groupsJson.map((g) => ({ id: g.id, name: g.name, icon: g.icon })))
+      setResources(groupsJson.flatMap((g) => g.resources.map((r) => ({ id: r.id, group_id: g.id, name: r.name }))))
+      setMembers((await mRes.json()).map((u: { id: string; full_name: string; department?: string | null }) => ({ id: u.id, full_name: u.full_name, department: u.department ?? null })))
+    } finally {
+      setLoading(false)
+    }
   }, [dateFrom, dateTo, resourceFilter, userFilter, statusFilter])
 
   useEffect(() => { load() }, [load])

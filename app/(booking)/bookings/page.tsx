@@ -78,25 +78,31 @@ function BookingsPageInner() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { from, to } = viewMode === 'month' ? getMonthGridRange(viewMonth)
-      : viewMode === 'week' ? getWeekRange(anchorDate)
-      : getDayRange(anchorDate)
-    const bookingsUrl = `/api/bookings?from=${from.toISOString()}&to=${to.toISOString()}`
-    const [bRes, gRes, mRes, pRes] = await Promise.all([
-      fetch(bookingsUrl),
-      fetch('/api/booking-resources'),
-      fetch('/api/members'),
-      fetch('/api/booking-purposes'),
-    ])
-    const bJson = await bRes.json()
-    setBookings(bJson.bookings ?? [])
-    setIsApprover(bJson.isApprover ?? false)
-    setIsAdmin(bJson.isAdmin ?? false)
-    setMyUserId(bJson.myUserId ?? '')
-    setGroups(await gRes.json())
-    setMembers((await mRes.json()).map((u: { id: string; full_name: string; department?: string | null }) => ({ id: u.id, full_name: u.full_name, department: u.department })))
-    setPurposes(await pRes.json())
-    setLoading(false)
+    try {
+      const { from, to } = viewMode === 'month' ? getMonthGridRange(viewMonth)
+        : viewMode === 'week' ? getWeekRange(anchorDate)
+        : getDayRange(anchorDate)
+      const bookingsUrl = `/api/bookings?from=${from.toISOString()}&to=${to.toISOString()}`
+      const [bRes, gRes, mRes, pRes] = await Promise.all([
+        fetch(bookingsUrl),
+        fetch('/api/booking-resources'),
+        fetch('/api/members'),
+        fetch('/api/booking-purposes'),
+      ])
+      const bJson = await bRes.json()
+      setBookings(bJson.bookings ?? [])
+      setIsApprover(bJson.isApprover ?? false)
+      setIsAdmin(bJson.isAdmin ?? false)
+      setMyUserId(bJson.myUserId ?? '')
+      setGroups(await gRes.json())
+      setMembers((await mRes.json()).map((u: { id: string; full_name: string; department?: string | null }) => ({ id: u.id, full_name: u.full_name, department: u.department })))
+      setPurposes(await pRes.json())
+    } finally {
+      // Luôn tắt loading dù có lỗi giữa chừng (vd 1 fetch lỗi) — tránh trang
+      // bị kẹt loading vĩnh viễn như sự cố 21/07/2026 (thiếu composite index
+      // ở /api/booking-purposes làm nhân viên không xem được lịch).
+      setLoading(false)
+    }
   }, [viewMonth, viewMode, anchorDate])
 
   useEffect(() => { load() }, [load])

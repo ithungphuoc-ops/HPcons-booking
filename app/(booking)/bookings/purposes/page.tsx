@@ -23,11 +23,14 @@ export default function PurposesPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [pRes, profileRes] = await Promise.all([fetch('/api/booking-purposes'), fetch('/api/profile')])
-    setPurposes(await pRes.json())
-    const profile = await profileRes.json()
-    setIsAdmin(profile.role === 'owner' || profile.role === 'admin')
-    setLoading(false)
+    try {
+      const [pRes, profileRes] = await Promise.all([fetch('/api/booking-purposes'), fetch('/api/profile')])
+      setPurposes(await pRes.json())
+      const profile = await profileRes.json()
+      setIsAdmin(profile.role === 'owner' || profile.role === 'admin')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => { load() }, [load])

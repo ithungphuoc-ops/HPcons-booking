@@ -9,11 +9,14 @@ export interface BookingPurposeWithId extends FirestoreBookingPurpose {
   id: string;
 }
 
+// Chỉ orderBy trên Firestore (không kèm where) — kết hợp where("isActive")
+// + orderBy("name") cần composite index chưa tạo, gây FAILED_PRECONDITION
+// cho mọi user không phải admin (includeInactive=false). Lọc isActive ở code
+// thay vì Firestore — đúng pattern đã dùng xuyên suốt module này.
 export async function listBookingPurposes(includeInactive = false): Promise<BookingPurposeWithId[]> {
-  let q = adminDb.collection(COLLECTION).orderBy("name") as FirebaseFirestore.Query;
-  if (!includeInactive) q = q.where("isActive", "==", true);
-  const snap = await q.get();
-  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as FirestoreBookingPurpose) }));
+  const snap = await adminDb.collection(COLLECTION).orderBy("name").get();
+  const all = snap.docs.map((d) => ({ id: d.id, ...(d.data() as FirestoreBookingPurpose) }));
+  return includeInactive ? all : all.filter((p) => p.isActive);
 }
 
 export async function createBookingPurpose(name: string, createdBy: string): Promise<BookingPurposeWithId> {
