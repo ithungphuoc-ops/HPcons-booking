@@ -51,6 +51,14 @@ export default function RootLayout({
           data-app="Booking"
           async
         />
+        {/* Bong bóng AI hướng dẫn (thí điểm, 27/07/2026) — widget RIÊNG, tách
+            biệt hoàn toàn với feedback-widget.js phía trên (xem change
+            cross-app-ai-guide-widget ở repo hpcons-portal). */}
+        <script
+          src={process.env.NEXT_PUBLIC_AI_GUIDE_WIDGET_URL || 'https://account.hpcore.vn/ai-guide-widget.js'}
+          data-app="Booking"
+          async
+        />
       </body>
     </html>
   );
