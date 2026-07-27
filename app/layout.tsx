@@ -38,7 +38,20 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        {/* Bong bóng góp ý/báo lỗi xuyên suốt hệ sinh thái (27/07/2026) — app
+            thí điểm đầu tiên. File phục vụ từ app tổng, không cần code riêng
+            ở đây ngoài đúng 1 dòng này (xem change cross-app-feedback-widget
+            ở repo hpcons-portal). URL lấy từ env — mặc định production, đổi
+            NEXT_PUBLIC_FEEDBACK_WIDGET_URL trong .env.local để trỏ về app
+            tổng chạy local lúc test, không cần sửa/revert code. */}
+        <script
+          src={process.env.NEXT_PUBLIC_FEEDBACK_WIDGET_URL || 'https://account.hpcore.vn/feedback-widget.js'}
+          data-app="Booking"
+          async
+        />
+      </body>
     </html>
   );
 }
