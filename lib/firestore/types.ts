@@ -51,6 +51,10 @@ export interface FirestoreUserSettings {
   reminderDaysAhead?: number;
   workSchedule?: Record<string, { id: string; start: string; end: string }[]>;
   delegation?: { delegateTo: string; fromDate: string; toDate: string } | null;
+  // Bật/tắt riêng từng loại thông báo (khoá = FirestoreNotification.type, vd
+  // "comment_mention") — thiếu khoá = coi như bật (true), xem
+  // lib/firestore/notifications.ts createNotifications().
+  notificationSettings?: Partial<Record<string, boolean>> | null;
 }
 
 /**

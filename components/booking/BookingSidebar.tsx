@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { signOut } from 'firebase/auth'
 import {
-  ChevronDown, ChevronRight, Grid3x3, LogOut, Menu, Plus, Search, Target, BarChart3, X,
+  BellRing, ChevronDown, ChevronRight, Grid3x3, LogOut, Menu, Plus, Search, Target, BarChart3, X,
 } from 'lucide-react'
 import { getFirebaseAuth } from '@/lib/firebase/client'
 import NotificationBell from '@/components/layout/NotificationBell'
@@ -61,8 +61,17 @@ function SidebarContent({ user, onNavigate }: { user: User | null; onNavigate?: 
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="HP Cons" className="h-9 w-9 rounded bg-white object-contain p-0.5" />
         </button>
-        <div className="[&_button]:h-8 [&_button]:w-8 [&_button]:text-[#9fb3aa] [&_button]:hover:bg-white/5 [&_button]:hover:text-white">
+        <div className="flex items-center gap-1 [&_button]:h-8 [&_button]:w-8 [&_button]:text-[#9fb3aa] [&_button]:hover:bg-white/5 [&_button]:hover:text-white">
           <NotificationBell />
+          <Link
+            href="/bookings/settings/notifications"
+            onClick={onNavigate}
+            title="Cài đặt thông báo"
+            aria-label="Cài đặt thông báo"
+            className="flex h-8 w-8 items-center justify-center rounded-xl text-[#9fb3aa] hover:bg-white/5 hover:text-white"
+          >
+            <BellRing size={16} />
+          </Link>
         </div>
       </div>
 
