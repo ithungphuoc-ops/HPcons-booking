@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus, Pencil, Check, X, Paperclip } from 'lucide-react'
 import { GROUP_ICONS, groupIcon } from './groupIcons'
 import type { MemberOption } from './BookingFormDialog'
+import { reportActivity } from '@/lib/reportActivity'
 
 type Attachment = { name: string; url: string }
 type RegistrationType = 'auto' | 'approval'
@@ -77,6 +78,7 @@ export default function ManageResourcesPanel({ groups, members, onChanged, isAdm
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'group', name: groupName.trim(), icon: groupIconKey }),
       })
+      reportActivity({ action: 'Thêm nhóm tài nguyên', entityType: 'booking_resource_group', entityId: groupName.trim(), detail: `Tạo nhóm "${groupName.trim()}"` })
       setGroupName('')
       await refresh()
     } finally { setSavingGroup(false) }
@@ -96,6 +98,7 @@ export default function ManageResourcesPanel({ groups, members, onChanged, isAdm
     setSavingGroupEdit(true)
     try {
       await patchResource(id, { type: 'group', name: editGroupName.trim(), icon: editGroupIcon })
+      reportActivity({ action: 'Sửa nhóm tài nguyên', entityType: 'booking_resource_group', entityId: id, detail: `Đổi tên/icon nhóm thành "${editGroupName.trim()}"` })
       setEditingGroupId(null)
       await refresh()
     } catch (e) { alert((e as Error).message) } finally { setSavingGroupEdit(false) }
@@ -104,6 +107,7 @@ export default function ManageResourcesPanel({ groups, members, onChanged, isAdm
   async function toggleGroupActive(g: GroupRow) {
     try {
       await patchResource(g.id, { type: 'group', isActive: !g.is_active })
+      reportActivity({ action: g.is_active ? 'Đóng nhóm tài nguyên' : 'Mở lại nhóm tài nguyên', entityType: 'booking_resource_group', entityId: g.id, detail: `Nhóm "${g.name}"` })
       await refresh()
     } catch (e) { alert((e as Error).message) }
   }
@@ -144,6 +148,7 @@ export default function ManageResourcesPanel({ groups, members, onChanged, isAdm
           booking_window: resBookingWindow,
         }),
       })
+      reportActivity({ action: 'Thêm tài nguyên', entityType: 'booking_resource', entityId: resName.trim(), detail: `Tạo tài nguyên "${resName.trim()}"` })
       setResName(''); setResCapacity(''); setResPlate(''); setResApprovers([]); setResManagerId(''); setResFollowers([])
       setResRegistrationType('approval'); setResAttachments([]); setResBookingWindow(null)
       await refresh()
@@ -202,6 +207,7 @@ export default function ManageResourcesPanel({ groups, members, onChanged, isAdm
             attachments: editResAttachments,
           }
       await patchResource(id, body)
+      reportActivity({ action: 'Sửa tài nguyên', entityType: 'booking_resource', entityId: id, detail: `Đổi cấu hình tài nguyên "${editResName.trim()}"` })
       setEditingResId(null)
       await refresh()
     } catch (e) { alert((e as Error).message) } finally { setSavingResEdit(false) }
@@ -210,6 +216,7 @@ export default function ManageResourcesPanel({ groups, members, onChanged, isAdm
   async function toggleResourceActive(r: ResourceRow) {
     try {
       await patchResource(r.id, { type: 'resource', isActive: !r.is_active })
+      reportActivity({ action: r.is_active ? 'Đóng tài nguyên' : 'Mở lại tài nguyên', entityType: 'booking_resource', entityId: r.id, detail: `Tài nguyên "${r.name}"` })
       await refresh()
     } catch (e) { alert((e as Error).message) }
   }

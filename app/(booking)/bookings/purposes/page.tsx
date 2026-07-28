@@ -6,6 +6,7 @@ import { ArrowLeft, Search, Target, Pencil, Check, X, LayoutGrid } from 'lucide-
 import EmptyState from '@/components/booking/EmptyState'
 import PurposeFormDesigner from '@/components/booking/PurposeFormDesigner'
 import type { BookingFormField } from '@/lib/firestore/types'
+import { reportActivity } from '@/lib/reportActivity'
 
 type Purpose = { id: string; name: string; is_active: boolean; creator_name: string | null; count: number; form_schema: BookingFormField[] }
 
@@ -47,12 +48,15 @@ export default function PurposesPage() {
       })
       const json = await res.json()
       if (!res.ok) { alert(json.error ?? 'Lỗi'); return }
+      reportActivity({ action: 'Thêm mục đích đặt lịch', entityType: 'booking_purpose', entityId: newName.trim(), detail: `Tạo mục đích "${newName.trim()}"` })
       setNewName(''); load()
     } finally { setSaving(false) }
   }
 
   async function toggle(id: string) {
+    const p = purposes.find((x) => x.id === id)
     await fetch(`/api/booking-purposes/${id}`, { method: 'PATCH' })
+    reportActivity({ action: p?.is_active ? 'Đóng mục đích đặt lịch' : 'Mở lại mục đích đặt lịch', entityType: 'booking_purpose', entityId: id, detail: `Mục đích "${p?.name ?? id}"` })
     load()
   }
 
@@ -71,6 +75,7 @@ export default function PurposesPage() {
       })
       const json = await res.json()
       if (!res.ok) { alert(json.error ?? 'Lỗi'); return }
+      reportActivity({ action: 'Sửa mục đích đặt lịch', entityType: 'booking_purpose', entityId: id, detail: `Đổi tên thành "${editName.trim()}"` })
       setEditingId(null)
       await load()
     } finally {
