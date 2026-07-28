@@ -26,6 +26,10 @@ export interface FirestoreUser {
   title: string | null;
   address: string | null;
   managerId: string | null;
+  // Username ngắn để @mention (28/07/2026, sinh ở hpcons-portal — xem
+  // lib/username.ts bên đó). Thiếu field = người tạo trước tính năng này,
+  // app con tự lấy phần trước "@" trong email làm dự phòng.
+  username?: string | null;
   // Mã nhân viên (HP00xxx) — đồng bộ từ danh sách nhân sự HR (13/07/2026)
   employeeCode?: string | null;
   // Trạng thái công tác (13/07/2026). Thiếu field = coi như "active".

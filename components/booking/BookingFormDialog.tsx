@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { X, Paperclip, CalendarClock } from 'lucide-react'
 import BookingDynamicFields, { type DynamicValue } from './BookingDynamicFields'
 import type { BookingFormField } from '@/lib/firestore/types'
+import DatePicker from '@/components/ui/DatePicker'
 
 export type BookingPurposeOption = { id: string; name: string; form_schema: BookingFormField[] }
 const OTHER_PURPOSE = '__other__'
@@ -20,7 +21,7 @@ export type BookingResourceOption = {
   manager_id?: string | null
 }
 export type BookingGroupOption = { id: string; name: string; icon: string }
-export type MemberOption = { id: string; full_name: string; department?: string | null }
+export type MemberOption = { id: string; full_name: string; username?: string | null; department?: string | null }
 
 // Đăng ký đang sửa (20/07/2026) — CHỈ hỗ trợ sửa tiêu đề/thời gian/tài
 // nguyên/mục đích/formData/mô tả, KHÔNG sửa người theo dõi/tệp đính kèm/quản
@@ -149,11 +150,16 @@ export default function BookingFormDialog({
     }
   }
 
-  // Bỏ tiền tố "@" nếu người dùng gõ theo thói quen kiểu mention (Base/Slack...)
-  // — tên nhân viên không chứa ký tự "@" nên trước đây gõ "@thu" sẽ không khớp gì.
+  // Bỏ tiền tố "@" nếu người dùng gõ theo thói quen kiểu mention (Base/Slack...).
+  // Từ 28/07/2026: khớp thêm theo username ngắn (vd "@phucBM", sinh ở
+  // hpcons-portal — xem lib/username.ts bên đó) chứ không chỉ tên đầy đủ,
+  // đúng thói quen gõ @mention thay vì phải nhớ/gõ cả họ tên dễ trùng.
   const followerQuery = followerInput.replace(/^@/, '').trim().toLowerCase()
   const filteredMembers = followerQuery.length > 0
-    ? members.filter((m) => m.full_name.toLowerCase().includes(followerQuery) && !followers.find((f) => f.id === m.id))
+    ? members.filter((m) =>
+        (m.full_name.toLowerCase().includes(followerQuery) ||
+          (m.username && m.username.toLowerCase().includes(followerQuery))) &&
+        !followers.find((f) => f.id === m.id))
     : []
 
   async function handleFilesSelected(files: FileList | null) {
@@ -183,6 +189,11 @@ export default function BookingFormDialog({
     if (!resourceId) return setError('Vui lòng chọn tài nguyên')
     if (!title.trim()) return setError('Vui lòng nhập tiêu đề')
     if (purposes.length > 0 && !purposeId) return setError('Vui lòng chọn mục đích')
+    // Trước đây dựa vào required của <input type="date"> gốc để chặn ngày
+    // rỗng — DatePicker tự viết không có required kiểu HTML, phải tự kiểm
+    // tra ở đây (nếu không, new Date('T00:00:00') ở dưới ra Invalid Date mà
+    // so sánh <= vẫn lọt qua, gửi lên API dữ liệu ngày hỏng).
+    if (!startDate || !endDate) return setError('Vui lòng chọn đầy đủ ngày bắt đầu và kết thúc')
     const startAt = new Date(`${startDate}T${startTime}:00`)
     const endAt = new Date(`${endDate}T${endTime}:00`)
     if (endAt <= startAt) return setError('Thời gian kết thúc phải sau thời gian bắt đầu')
@@ -290,13 +301,13 @@ export default function BookingFormDialog({
             <div className="grid grid-cols-2 gap-3">
               <Field label="Bắt đầu lúc" required>
                 <div className="flex gap-1.5">
-                  <input type="date" className="hp-input" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
+                  <DatePicker value={startDate} onChange={setStartDate} className="hp-input text-left" />
                   <input type="time" className="hp-input w-[90px]" value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
                 </div>
               </Field>
               <Field label="Kết thúc lúc" required>
                 <div className="flex gap-1.5">
-                  <input type="date" className="hp-input" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
+                  <DatePicker value={endDate} onChange={setEndDate} className="hp-input text-left" />
                   <input type="time" className="hp-input w-[90px]" value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
                 </div>
               </Field>

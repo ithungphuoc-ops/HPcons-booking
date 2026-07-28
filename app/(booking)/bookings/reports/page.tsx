@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, BarChart3, Download } from 'lucide-react'
 import EmptyState from '@/components/booking/EmptyState'
+import DatePicker from '@/components/ui/DatePicker'
 
 type BookingRow = {
   user_id: string
@@ -150,9 +151,9 @@ export default function BookingReportsPage() {
 
       <div className="mb-5 flex flex-wrap items-center gap-2 rounded-xl p-3" style={{ background: 'var(--hp-surface)', border: '1px solid var(--hp-border)' }}>
         <div className="flex items-center gap-1.5">
-          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="hp-input w-auto" />
+          <DatePicker value={dateFrom} onChange={setDateFrom} className="hp-input w-auto text-left" />
           <span className="text-xs" style={{ color: 'var(--hp-text-desc)' }}>đến</span>
-          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="hp-input w-auto" />
+          <DatePicker value={dateTo} onChange={setDateTo} className="hp-input w-auto text-left" />
         </div>
         <select value={groupFilter} onChange={(e) => { setGroupFilter(e.target.value); setResourceFilter('') }} className="hp-input w-auto">
           <option value="">Tất cả nhóm</option>

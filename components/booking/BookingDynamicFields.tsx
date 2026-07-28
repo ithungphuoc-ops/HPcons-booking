@@ -2,6 +2,7 @@
 
 import { Paperclip } from 'lucide-react'
 import type { BookingFormFieldType } from '@/lib/firestore/types'
+import DatePicker from '@/components/ui/DatePicker'
 
 export type DynamicField = { id: string; label: string; type: BookingFormFieldType; required: boolean; options?: string[] }
 export type DynamicValue = string | number | boolean | string[] | { name: string; url: string } | null
@@ -63,7 +64,7 @@ export default function BookingDynamicFields({
           return (
             <div key={field.id} className="flex flex-col gap-1.5">
               {label}
-              <input type="date" className="hp-input" value={(value as string) ?? ''} onChange={(e) => onChange(field.id, e.target.value)} />
+              <DatePicker className="hp-input text-left" value={(value as string) ?? ''} onChange={(v) => onChange(field.id, v)} />
             </div>
           )
         }

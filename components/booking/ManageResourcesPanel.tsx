@@ -625,8 +625,11 @@ function BookingWindowPicker({ value, onChange }: { value: BookingWindow | null;
 // mention-chip của "Người theo dõi" trong BookingFormDialog.tsx.
 function FollowerPicker({ members, selected, onChange }: { members: MemberOption[]; selected: MemberOption[]; onChange: (next: MemberOption[]) => void }) {
   const [query, setQuery] = useState('')
-  const filtered = query.length > 0
-    ? members.filter((m) => m.full_name.toLowerCase().includes(query.toLowerCase()) && !selected.find((s) => s.id === m.id))
+  const q = query.replace(/^@/, '').trim().toLowerCase()
+  const filtered = q.length > 0
+    ? members.filter((m) =>
+        (m.full_name.toLowerCase().includes(q) || (m.username && m.username.toLowerCase().includes(q))) &&
+        !selected.find((s) => s.id === m.id))
     : []
 
   return (

@@ -56,6 +56,7 @@ export function toUserJson(u: UserWithId) {
     id: u.id,
     email: u.email,
     full_name: u.fullName,
+    username: u.username ?? null,
     phone: u.phone,
     avatar_url: u.avatarUrl,
     role: u.role,
