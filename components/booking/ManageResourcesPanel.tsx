@@ -334,10 +334,11 @@ export default function ManageResourcesPanel({ groups, members, onChanged, isAdm
                   <div className="text-[11px]" style={{ color: 'var(--hp-text-desc)' }}>(Không dùng nữa — chuỗi duyệt nay tự tính theo quản lý trực tiếp/nhân sự của người đặt.)</div>
                 </>
               )}
-              <select value={resManagerId} onChange={(e) => setResManagerId(e.target.value)} className="hp-input w-full">
-                <option value="">— Người quản lý tài nguyên (tuỳ chọn) —</option>
-                {members.map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
-              </select>
+              <ManagerPicker
+                members={members}
+                selected={members.find((m) => m.id === resManagerId) ?? null}
+                onChange={(m) => setResManagerId(m?.id ?? '')}
+              />
               <FollowerPicker members={members} selected={resFollowers} onChange={setResFollowers} />
               <AttachmentPicker value={resAttachments} onChange={setResAttachments} />
               <BookingWindowPicker value={resBookingWindow} onChange={setResBookingWindow} />
@@ -407,10 +408,11 @@ export default function ManageResourcesPanel({ groups, members, onChanged, isAdm
                                 <input value={editResPlate} onChange={(e) => setEditResPlate(e.target.value)} placeholder="Biển số" className="hp-input flex-1" />
                               </div>
                               <RegistrationTypePicker value={editResRegistrationType} onChange={setEditResRegistrationType} />
-                              <select value={editResManagerId} onChange={(e) => setEditResManagerId(e.target.value)} className="hp-input w-full">
-                                <option value="">— Người quản lý tài nguyên (tuỳ chọn) —</option>
-                                {members.map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
-                              </select>
+                              <ManagerPicker
+                                members={members}
+                                selected={members.find((m) => m.id === editResManagerId) ?? null}
+                                onChange={(m) => setEditResManagerId(m?.id ?? '')}
+                              />
                             </>
                           )}
                           <FollowerPicker members={members} selected={editResFollowers} onChange={setEditResFollowers} />
@@ -630,6 +632,49 @@ function BookingWindowPicker({ value, onChange }: { value: BookingWindow | null;
 
 // Chọn nhiều người theo dõi riêng của 1 tài nguyên — tái dùng đúng pattern
 // mention-chip của "Người theo dõi" trong BookingFormDialog.tsx.
+// Chọn 1 người quản lý tài nguyên kiểu @mention (gõ tên để tìm, hiện thẻ đã
+// chọn kèm nút xoá) — cùng nhìn/hành vi với FollowerPicker bên dưới nhưng chỉ
+// cho chọn ĐÚNG 1 người thay vì nhiều.
+function ManagerPicker({ members, selected, onChange }: { members: MemberOption[]; selected: MemberOption | null; onChange: (next: MemberOption | null) => void }) {
+  const [query, setQuery] = useState('')
+  const q = query.replace(/^@/, '').trim().toLowerCase()
+  const filtered = q.length > 0
+    ? members.filter((m) =>
+        (m.full_name.toLowerCase().includes(q) || (m.username && m.username.toLowerCase().includes(q))) &&
+        m.id !== selected?.id)
+    : []
+
+  return (
+    <div className="relative">
+      <div className="hp-input flex min-h-9 flex-wrap items-center gap-1.5">
+        {selected && (
+          <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]" style={{ background: 'var(--hp-primary-bg)', color: 'var(--hp-primary-soft)' }}>
+            {selected.full_name}
+            <button type="button" onClick={() => onChange(null)} className="leading-none">×</button>
+          </span>
+        )}
+        {!selected && (
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Người quản lý tài nguyên — gõ tên để tìm..."
+            className="min-w-[100px] flex-1 bg-transparent text-xs outline-none"
+          />
+        )}
+      </div>
+      {filtered.length > 0 && (
+        <div className="absolute left-0 right-0 top-full z-10 max-h-40 overflow-y-auto rounded-lg" style={{ background: 'var(--hp-elevated)', border: '1px solid var(--hp-border)', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>
+          {filtered.map((m) => (
+            <div key={m.id} onClick={() => { onChange(m); setQuery('') }} className="cursor-pointer px-3 py-1.5 text-xs hover:opacity-80">
+              {m.full_name}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function FollowerPicker({ members, selected, onChange }: { members: MemberOption[]; selected: MemberOption[]; onChange: (next: MemberOption[]) => void }) {
   const [query, setQuery] = useState('')
   const q = query.replace(/^@/, '').trim().toLowerCase()
