@@ -34,12 +34,15 @@ export async function GET(req: Request) {
     ? listBookingsInRange(Timestamp.fromDate(new Date(from)), Timestamp.fromDate(new Date(to)))
     : listBookingsSince(Timestamp.fromDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)))
 
-  const [resources, bookings, users, purposes, deptSnap] = await Promise.all([
+  // isAnyDepartmentLeader gộp vào CÙNG Promise.all (trước đây await riêng SAU khối này — 1 vòng
+  // round-trip Firestore tuần tự không cần thiết, xem điều tra "F5 chậm" 30/07/2026).
+  const [resources, bookings, users, purposes, deptSnap, canApproveSomething] = await Promise.all([
     listBookingResources(),
     bookingsPromise,
     listAllUsers(),
     listBookingPurposes(true),
     adminDb.collection('departments').get(),
+    isAdmin(session) ? Promise.resolve(true) : isAnyDepartmentLeader(session.uid),
   ])
 
   // Tên phòng ban của người đặt (20/07/2026) — để hiển thị trên lịch, tránh
@@ -64,9 +67,6 @@ export async function GET(req: Request) {
   if (resourceId) rows = rows.filter((b) => b.resourceId === resourceId)
   if (status) rows = rows.filter((b) => b.status === status)
   if (userId) rows = rows.filter((b) => b.userId === userId)
-
-  // Có thể là người duyệt (trưởng đơn vị bất kỳ hoặc quản lý nhân sự) để hiện tab "Chờ duyệt", hoặc là admin
-  const canApproveSomething = isAdmin(session) || (await isAnyDepartmentLeader(session.uid))
 
   return NextResponse.json({
     bookings: rows.map((b) => toBookingJson(b, userMap, resourceMap, purposeMap)),
