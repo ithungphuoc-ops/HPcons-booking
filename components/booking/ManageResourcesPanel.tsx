@@ -650,6 +650,7 @@ function ManagerPicker({ members, selected, onChange }: { members: MemberOption[
         {selected && (
           <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]" style={{ background: 'var(--hp-primary-bg)', color: 'var(--hp-primary-soft)' }}>
             {selected.full_name}
+            {selected.username && <span style={{ opacity: 0.7 }}>@{selected.username}</span>}
             <button type="button" onClick={() => onChange(null)} className="leading-none">×</button>
           </span>
         )}
@@ -665,8 +666,9 @@ function ManagerPicker({ members, selected, onChange }: { members: MemberOption[
       {filtered.length > 0 && (
         <div className="absolute left-0 right-0 top-full z-10 max-h-40 overflow-y-auto rounded-lg" style={{ background: 'var(--hp-elevated)', border: '1px solid var(--hp-border)', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>
           {filtered.map((m) => (
-            <div key={m.id} onClick={() => { onChange(m); setQuery('') }} className="cursor-pointer px-3 py-1.5 text-xs hover:opacity-80">
-              {m.full_name}
+            <div key={m.id} onClick={() => { onChange(m); setQuery('') }} className="cursor-pointer px-3 py-1.5 text-xs hover:opacity-80 flex items-center justify-between gap-2">
+              <span className="font-semibold">{m.full_name}</span>
+              {m.username && <span style={{ color: 'var(--hp-text-desc)' }}>@{m.username}</span>}
             </div>
           ))}
         </div>
@@ -690,6 +692,7 @@ function FollowerPicker({ members, selected, onChange }: { members: MemberOption
         {selected.map((f) => (
           <span key={f.id} className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]" style={{ background: 'var(--hp-primary-bg)', color: 'var(--hp-primary-soft)' }}>
             {f.full_name}
+            {f.username && <span style={{ opacity: 0.7 }}>@{f.username}</span>}
             <button type="button" onClick={() => onChange(selected.filter((x) => x.id !== f.id))} className="leading-none">×</button>
           </span>
         ))}
@@ -703,8 +706,9 @@ function FollowerPicker({ members, selected, onChange }: { members: MemberOption
       {filtered.length > 0 && (
         <div className="absolute left-0 right-0 top-full z-10 max-h-40 overflow-y-auto rounded-lg" style={{ background: 'var(--hp-elevated)', border: '1px solid var(--hp-border)', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>
           {filtered.map((m) => (
-            <div key={m.id} onClick={() => { onChange([...selected, m]); setQuery('') }} className="cursor-pointer px-3 py-1.5 text-xs hover:opacity-80">
-              {m.full_name}
+            <div key={m.id} onClick={() => { onChange([...selected, m]); setQuery('') }} className="cursor-pointer px-3 py-1.5 text-xs hover:opacity-80 flex items-center justify-between gap-2">
+              <span className="font-semibold">{m.full_name}</span>
+              {m.username && <span style={{ color: 'var(--hp-text-desc)' }}>@{m.username}</span>}
             </div>
           ))}
         </div>

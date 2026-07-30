@@ -397,6 +397,7 @@ export default function BookingFormDialog({
                     {followers.map((f) => (
                       <span key={f.id} className="flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs" style={{ background: 'var(--hp-primary-bg)', color: 'var(--hp-primary-soft)' }}>
                         {f.full_name}
+                        {f.username && <span style={{ opacity: 0.7 }}>@{f.username}</span>}
                         <button type="button" onClick={() => setFollowers((fs) => fs.filter((x) => x.id !== f.id))} className="leading-none">×</button>
                       </span>
                     ))}
@@ -413,6 +414,7 @@ export default function BookingFormDialog({
                         <div key={m.id} onClick={() => { setFollowers((fs) => [...fs, m]); setFollowerInput('') }}
                           className="cursor-pointer px-3.5 py-2 text-sm hover:opacity-80">
                           <span className="font-semibold">{m.full_name}</span>
+                          {m.username && <span className="ml-2 text-xs" style={{ color: 'var(--hp-text-desc)' }}>@{m.username}</span>}
                           {m.department && <span className="ml-2 text-xs" style={{ color: 'var(--hp-text-desc)' }}>{m.department}</span>}
                         </div>
                       ))}
