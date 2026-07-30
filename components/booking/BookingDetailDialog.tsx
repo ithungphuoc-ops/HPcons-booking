@@ -186,8 +186,10 @@ export default function BookingDetailDialog({
                 <Section title={`MỤC ĐÍCH${d.resource ? ' — ' + d.resource.name.toUpperCase() : ''}`}>
                   {d.purpose_name && <InfoRow icon={<Target size={14} />} label="Chi tiết mục đích" value={d.purpose_name} />}
                   {d.quantity != null && <InfoRow icon={<Users2 size={14} />} label="Số lượng" value={String(d.quantity)} />}
-                  {d.destination && <InfoRow icon={<MapPin size={14} />} label="Điểm đến" value={d.destination} />}
-                  {d.passengers && <InfoRow icon={<Users2 size={14} />} label="Hành khách" value={d.passengers} />}
+                  {/* Nhãn "Điểm đi"/"Điểm đến" NGƯỢC với tên field destination/passengers — xem
+                      chú thích ở BookingFormDialog.tsx. */}
+                  {d.destination && <InfoRow icon={<MapPin size={14} />} label="Điểm đi" value={d.destination} />}
+                  {d.passengers && <InfoRow icon={<MapPin size={14} />} label="Điểm đến" value={d.passengers} />}
                   {d.form_data?.map((f) => {
                     if (f.type === 'file' && f.value && typeof f.value === 'object') {
                       const fileVal = f.value as { name: string; url: string }

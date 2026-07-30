@@ -381,8 +381,11 @@ export default function BookingFormDialog({
 
             {isVehicle && (
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Điểm đến"><input className="hp-input" value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Địa chỉ điểm đến" /></Field>
-                <Field label="Hành khách"><input className="hp-input" value={passengers} onChange={(e) => setPassengers(e.target.value)} placeholder="Tên hành khách" /></Field>
+                {/* Nhãn hiển thị "Điểm đi"/"Điểm đến" NGƯỢC với tên field lưu trữ (destination/
+                    passengers) — đổi theo yêu cầu Sếp (30/07/2026), giữ nguyên tên field cũ để
+                    không phải đổi schema/báo cáo, chỉ đổi nhãn + placeholder hiển thị. */}
+                <Field label="Điểm đi"><input className="hp-input" value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Địa chỉ điểm đi" /></Field>
+                <Field label="Điểm đến"><input className="hp-input" value={passengers} onChange={(e) => setPassengers(e.target.value)} placeholder="Địa chỉ điểm đến" /></Field>
               </div>
             )}
 
