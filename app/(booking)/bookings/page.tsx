@@ -101,7 +101,10 @@ function BookingsPageInner() {
       setIsAdmin(bJson.isAdmin ?? false)
       setMyUserId(bJson.myUserId ?? '')
       setGroups(await gRes.json())
-      setMembers((await mRes.json()).map((u: { id: string; full_name: string; department?: string | null }) => ({ id: u.id, full_name: u.full_name, department: u.department })))
+      // Giữ nguyên username khi map — thiếu nó khiến @ tìm chỉ khớp được theo tên đầy đủ CÓ DẤU,
+      // gõ không dấu (vd "hau") sẽ không khớp "Hậu" (30/07/2026, phát hiện lúc test picker quản
+      // lý trực tiếp mới thêm ở BookingFormDialog.tsx).
+      setMembers((await mRes.json()).map((u: { id: string; full_name: string; username?: string | null; department?: string | null }) => ({ id: u.id, full_name: u.full_name, username: u.username, department: u.department })))
       setPurposes(await pRes.json())
     } finally {
       // Luôn tắt loading dù có lỗi giữa chừng (vd 1 fetch lỗi) — tránh trang
