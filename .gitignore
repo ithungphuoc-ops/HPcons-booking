@@ -1,5 +1,12 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# bản thử nghiệm cũ (Express + SQLite / Vite) trước khi chuyển sang Next.js hiện tại — không
+# liên quan tới app đang chạy thật, chưa từng commit, chặn hẳn để tránh lỡ tay cuốn theo git add -A
+/backend/
+/frontend/
+/reset.bat
+/start.bat
+
 # dependencies
 /node_modules
 /.pnp
