@@ -94,6 +94,12 @@ export default function BookingFormDialog({
   const [followerInput, setFollowerInput] = useState('')
   const [followers, setFollowers] = useState<MemberOption[]>([])
   const [managerId, setManagerId] = useState('')
+  // Quản lý trực tiếp — cùng UX với quatang/base-request-app: tự gợi ý theo Nhóm thành viên, có
+  // thể bấm "Đổi" để gõ @ tìm BẤT KỲ ai trong toàn công ty (không chỉ người đang là managerId của
+  // 1 nhóm nào) — xem app/api/managers/route.ts.
+  const [managerIds, setManagerIds] = useState<string[]>([])
+  const [managerEditing, setManagerEditing] = useState(false)
+  const [managerQuery, setManagerQuery] = useState('')
   const [attachments, setAttachments] = useState<{ name: string; url: string }[]>([])
   const [uploadingFiles, setUploadingFiles] = useState(false)
   const [error, setError] = useState('')
@@ -119,15 +125,28 @@ export default function BookingFormDialog({
       .finally(() => setLoadingBusy(false))
   }, [showBusy, resourceId, startDate])
 
-  // Gợi ý sẵn quản lý trực tiếp thật (theo phòng ban) — GET /api/profile đã
-  // trả sẵn `manager`, không cần viết endpoint riêng. Người đặt vẫn đổi
-  // được sang người khác nếu cần (xem select "Quản lý trực tiếp" bên dưới).
+  // Gợi ý sẵn quản lý trực tiếp thật (theo Nhóm thành viên) + danh sách quản lý để duyệt nhanh khi
+  // chưa gõ tìm gì (xem app/api/managers/route.ts).
   useEffect(() => {
     if (isEditing) return
-    fetch('/api/profile').then((r) => r.json()).then((p) => {
-      if (p?.manager?.id) setManagerId(p.manager.id)
+    fetch('/api/managers').then((r) => r.json()).then((data) => {
+      if (data?.defaultManagerId) setManagerId(data.defaultManagerId)
+      setManagerIds(data?.managerIds ?? [])
     }).catch(() => {})
   }, [isEditing])
+
+  const managerOptions = useMemo(
+    () => members.filter((m) => managerIds.includes(m.id)),
+    [members, managerIds],
+  )
+  const selectedManager = members.find((m) => m.id === managerId) ?? null
+  const managerMatches = useMemo(() => {
+    const q = managerQuery.trim().toLowerCase().replace(/^@/, '')
+    if (!q) return managerOptions
+    return members
+      .filter((m) => m.full_name.toLowerCase().includes(q) || (m.username && m.username.toLowerCase().includes(q)))
+      .slice(0, 8)
+  }, [managerQuery, managerOptions, members])
 
   const resource = resources.find((r) => r.id === resourceId)
   const group = groups.find((g) => g.id === resource?.group_id)
@@ -346,10 +365,47 @@ export default function BookingFormDialog({
 
             {!isEditing && (
               <Field label="Quản lý trực tiếp">
-                <select className="hp-input" value={managerId} onChange={(e) => setManagerId(e.target.value)}>
-                  <option value="">— Không có quản lý trực tiếp —</option>
-                  {members.map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
-                </select>
+                {selectedManager && !managerEditing ? (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: 'var(--hp-neutral-bg)', border: '1px solid var(--hp-border)' }}>
+                      {selectedManager.full_name}
+                      {selectedManager.username && <span style={{ color: 'var(--hp-text-desc)' }}>@{selectedManager.username}</span>}
+                    </span>
+                    <button type="button" onClick={() => { setManagerEditing(true); setManagerQuery('') }} className="text-xs font-medium" style={{ color: 'var(--hp-primary)' }}>
+                      Đổi
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <input
+                      className="hp-input"
+                      value={managerQuery}
+                      onChange={(e) => setManagerQuery(e.target.value)}
+                      placeholder="Gõ @ hoặc tên để tìm quản lý trực tiếp..."
+                      autoFocus={managerEditing}
+                    />
+                    {selectedManager && (
+                      <button type="button" onClick={() => setManagerEditing(false)} className="mt-1 text-xs font-medium" style={{ color: 'var(--hp-text-desc)' }}>
+                        Huỷ, giữ nguyên {selectedManager.full_name}
+                      </button>
+                    )}
+                    {managerMatches.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-40 overflow-y-auto rounded-lg" style={{ background: 'var(--hp-elevated)', border: '1px solid var(--hp-border)', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>
+                        {managerMatches.map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => { setManagerId(m.id); setManagerEditing(false); setManagerQuery('') }}
+                            className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-xs hover:opacity-80"
+                          >
+                            <span className="font-semibold">{m.full_name}</span>
+                            {m.username && <span style={{ color: 'var(--hp-text-desc)' }}>@{m.username}</span>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </Field>
             )}
 
