@@ -115,16 +115,30 @@ export default function BookingDynamicFields({
                 <button type="button" onClick={() => onChange(field.id, null)} className="shrink-0" style={{ color: 'var(--hp-danger)' }}>×</button>
               </div>
             ) : (
-              <input
-                type="file"
-                className="text-xs"
-                disabled={!onUploadFile || uploadingFieldId === field.id}
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file && onUploadFile) onUploadFile(field.id, file)
-                  e.target.value = ''
-                }}
-              />
+              <div className="flex items-center gap-2">
+                <label
+                  className="cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                  style={{
+                    background: !onUploadFile || uploadingFieldId === field.id ? 'var(--hp-border)' : 'var(--hp-primary)',
+                    opacity: !onUploadFile || uploadingFieldId === field.id ? 0.6 : 1,
+                  }}
+                >
+                  Chọn tệp
+                  <input
+                    type="file"
+                    className="hidden"
+                    disabled={!onUploadFile || uploadingFieldId === field.id}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file && onUploadFile) onUploadFile(field.id, file)
+                      e.target.value = ''
+                    }}
+                  />
+                </label>
+                <span className="text-xs" style={{ color: 'var(--hp-text-desc)' }}>
+                  {uploadingFieldId === field.id ? 'Đang tải...' : 'Chưa có tệp nào'}
+                </span>
+              </div>
             )}
             {!onUploadFile && <div className="text-[11px]" style={{ color: 'var(--hp-text-desc)' }}>(Xem trước — không tải tệp thật ở đây)</div>}
           </div>

@@ -441,13 +441,27 @@ export default function BookingFormDialog({
                       <button type="button" onClick={() => setAttachments((prev) => prev.filter((_, x) => x !== i))} className="shrink-0" style={{ color: 'var(--hp-danger)' }}>×</button>
                     </div>
                   ))}
-                  <input
-                    type="file"
-                    multiple
-                    onChange={(e) => { handleFilesSelected(e.target.files); e.target.value = '' }}
-                    disabled={uploadingFiles || attachments.length >= 5}
-                    className="text-xs"
-                  />
+                  <div className="flex items-center gap-2">
+                    <label
+                      className="cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                      style={{
+                        background: uploadingFiles || attachments.length >= 5 ? 'var(--hp-border)' : 'var(--hp-primary)',
+                        opacity: uploadingFiles || attachments.length >= 5 ? 0.6 : 1,
+                      }}
+                    >
+                      Chọn tệp
+                      <input
+                        type="file"
+                        multiple
+                        onChange={(e) => { handleFilesSelected(e.target.files); e.target.value = '' }}
+                        disabled={uploadingFiles || attachments.length >= 5}
+                        className="hidden"
+                      />
+                    </label>
+                    <span className="text-xs" style={{ color: 'var(--hp-text-desc)' }}>
+                      {attachments.length === 0 ? 'Chưa có tệp nào' : `${attachments.length} tệp đã chọn`}
+                    </span>
+                  </div>
                   <div className="text-[11px]" style={{ color: 'var(--hp-text-desc)' }}>
                     {uploadingFiles ? 'Đang tải tệp...' : 'Ảnh, PDF, Word, Excel — tối đa 10MB/tệp, 5 tệp'}
                   </div>
