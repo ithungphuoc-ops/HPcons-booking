@@ -129,7 +129,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     color: 'bg-lime-500',
     roles: ['admin', 'manager', 'employee'] as Role[],
     image: `${ACCOUNT_BASE}/landing-icons/hpc-receivable.png`,
-    comingSoon: true,
+    href: 'https://congno.hpcore.vn',
   },
   {
     name: 'HPC Workflow',
