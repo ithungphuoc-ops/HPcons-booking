@@ -123,7 +123,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     rolesEndpoint: 'https://pkd.hpcore.vn/api/roles',
   },
   {
-    name: 'HPC Receivable',
+    name: 'HPCons-CongNo',
     description: 'Theo dõi công nợ phải thu và dòng tiền',
     icon: Receipt, iconKey: 'Receipt',
     color: 'bg-lime-500',

@@ -35,7 +35,7 @@ export default function AppLauncher({
     !ql || a.name.toLowerCase().includes(ql) || (a.description ?? '').toLowerCase().includes(ql)
 
   const apps: DashboardApp[] = DASHBOARD_APPS.filter(a => a.roles.includes(roleForApps))
-  const isBiz = (n: string) => n.startsWith('HPC ')
+  const isBiz = (n: string) => n.startsWith('HPC')
 
   // Toàn bộ mục quản trị dưới đây thuộc app tổng (hpcons-portal), không phải
   // Booking — dùng href TUYỆT ĐỐI vì AppLauncher này chạy trong app Booking
