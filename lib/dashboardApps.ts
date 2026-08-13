@@ -54,7 +54,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     color: 'bg-rose-500',
     href: `${ACCOUNT_BASE}/dashboard/requests`,
     roles: ['admin', 'manager', 'employee'] as Role[],
-    image: `${ACCOUNT_BASE}/landing-icons/hpc-request.png`,
+    image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-request.png`,
   },
   {
     name: 'Nhóm Telegram',
@@ -63,7 +63,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     color: 'bg-sky-500',
     href: `${ACCOUNT_BASE}/dashboard/telegram-groups`,
     roles: ['admin', 'manager', 'employee'] as Role[],
-    image: `${ACCOUNT_BASE}/landing-icons/telegram.png`,
+    image: `${ACCOUNT_BASE}/landing-icons-3d/telegram.png`,
   },
   {
     name: 'Booking',
@@ -72,7 +72,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     color: 'bg-teal-500',
     href: '/bookings',
     roles: ['admin', 'manager', 'employee'] as Role[],
-    image: `${ACCOUNT_BASE}/landing-icons/hpc-booking.png`,
+    image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-booking.png`,
   },
   {
     name: 'Báo cáo',
@@ -89,7 +89,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     color: 'bg-gray-500',
     href: `${ACCOUNT_BASE}/dashboard/settings`,
     roles: ['admin'] as Role[],
-    image: `${ACCOUNT_BASE}/landing-icons/hpc-account.png`,
+    image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-account.png`,
   },
   {
     id: 'warehouse',
@@ -98,7 +98,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     icon: Warehouse, iconKey: 'Warehouse',
     color: 'bg-amber-500',
     roles: ['admin', 'manager', 'employee'] as Role[],
-    image: `${ACCOUNT_BASE}/landing-icons/hpc-warehouse.png`,
+    image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-warehouse.png`,
     href: 'https://khoct.hpcore.vn',
     rolesEndpoint: 'https://khoct.hpcore.vn/api/roles',
   },
@@ -108,7 +108,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     icon: PenTool, iconKey: 'PenTool',
     color: 'bg-violet-500',
     roles: ['admin', 'manager', 'employee'] as Role[],
-    image: `${ACCOUNT_BASE}/landing-icons/hpc-design.png`,
+    image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-design.png`,
     href: 'https://tk.hpcore.vn',
   },
   {
@@ -118,7 +118,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     icon: Briefcase, iconKey: 'Briefcase',
     color: 'bg-indigo-500',
     roles: ['admin', 'manager', 'employee'] as Role[],
-    image: `${ACCOUNT_BASE}/landing-icons/hpc-pkd.png`,
+    image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-pkd.png`,
     href: 'https://pkd.hpcore.vn',
     rolesEndpoint: 'https://pkd.hpcore.vn/api/roles',
   },
@@ -128,7 +128,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     icon: Receipt, iconKey: 'Receipt',
     color: 'bg-lime-500',
     roles: ['admin', 'manager', 'employee'] as Role[],
-    image: `${ACCOUNT_BASE}/landing-icons/hpc-receivable.png`,
+    image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-receivable.png`,
     href: 'https://congno.hpcore.vn',
   },
   {
@@ -137,7 +137,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     icon: WorkflowIcon, iconKey: 'Workflow',
     color: 'bg-cyan-500',
     roles: ['admin', 'manager', 'employee'] as Role[],
-    image: `${ACCOUNT_BASE}/landing-icons/hpc-workflow.png`,
+    image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-workflow.png`,
     comingSoon: true,
   },
   {
@@ -146,7 +146,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     icon: Heart, iconKey: 'Heart',
     color: 'bg-pink-500',
     roles: ['admin', 'manager', 'employee'] as Role[],
-    image: `${ACCOUNT_BASE}/landing-icons/hpc-me.png`,
+    image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-me.png`,
     comingSoon: true,
   },
   {
@@ -156,7 +156,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     icon: Laptop, iconKey: 'Laptop',
     color: 'bg-emerald-500',
     roles: ['admin', 'manager', 'employee'] as Role[],
-    image: `${ACCOUNT_BASE}/landing-icons/hpc-itasset.png`,
+    image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-itasset.png`,
     href: 'https://itasset.hpcore.vn',
     rolesEndpoint: 'https://itasset.hpcore.vn/api/roles',
   },
