@@ -54,7 +54,10 @@ export default function AppLauncher({
     // Chỉ owner (không phải admin/manager) — gán quyền cho từng ứng dụng
     // (con lẫn nội bộ), theo mô hình Base Account: chỉ Owner chỉ định App Admin.
     ...(isOwner ? DASHBOARD_APPS.filter(a => a.rolesEndpoint || a.internalRoles).map(a => ({
-      name: `Quyền ${a.name.replace(/^HPC\s*/, '')}`,
+      // "HPC Warehouse" -> "Warehouse" (có dấu cách) và "HPCons-KhoCtr" -> "KhoCtr"
+      // (không dấu cách, gạch nối) — 2 kiểu đặt tên khác nhau trong hệ sinh thái,
+      // regex cũ chỉ cắt đúng chữ "HPC " nên "HPCons-KhoCtr" bị cắt thành "ons-KhoCtr".
+      name: `Quyền ${a.name.replace(/^HPC(?:ons)?[\s-]*/, '')}`,
       description: `Gán vai trò nhân viên trong ${a.name}`,
       icon: ShieldCheck,
       color: 'bg-slate-500',
@@ -115,7 +118,7 @@ export default function AppLauncher({
               <p className="font-semibold text-gray-800">{g.title}</p>
               <p className="text-xs text-gray-400 mb-3">{g.subtitle}</p>
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                {g.items.map(app => <AppTile key={app.name} app={app} onNavigate={onClose} />)}
+                {g.items.map(app => <AppTile key={app.name} app={app} onNavigate={onClose} query={ql} />)}
               </div>
             </div>
           ))}
@@ -125,7 +128,22 @@ export default function AppLauncher({
   )
 }
 
-function AppTile({ app, onNavigate }: { app: LauncherItem; onNavigate: () => void }) {
+/** Tô sáng phần chữ khớp với từ khoá tìm kiếm — plain-match, khớp đúng luật lọc list ở trên. */
+function HighlightMatch({ text, query }: { text: string; query: string }) {
+  const q = query.trim()
+  if (!q) return <>{text}</>
+  const index = text.toLowerCase().indexOf(q.toLowerCase())
+  if (index === -1) return <>{text}</>
+  return (
+    <>
+      {text.slice(0, index)}
+      <mark className="rounded bg-green-100 px-0.5 font-semibold text-green-800">{text.slice(index, index + q.length)}</mark>
+      {text.slice(index + q.length)}
+    </>
+  )
+}
+
+function AppTile({ app, onNavigate, query }: { app: LauncherItem; onNavigate: () => void; query: string }) {
   const Icon = app.icon
   const inner = (
     <>
@@ -137,7 +155,7 @@ function AppTile({ app, onNavigate }: { app: LauncherItem; onNavigate: () => voi
           <Icon size={26} className="text-white" />
         )}
       </div>
-      <p className={`text-xs font-medium text-center leading-tight ${app.comingSoon ? 'text-gray-400' : 'text-gray-700'}`}>{app.name}</p>
+      <p className={`text-xs font-medium text-center leading-tight ${app.comingSoon ? 'text-gray-400' : 'text-gray-700'}`}><HighlightMatch text={app.name} query={query} /></p>
       {app.comingSoon && (
         <span className="text-[9px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">
           {app.launchDate ? `Ra mắt ${formatLaunchDate(app.launchDate)}` : 'Sắp ra mắt'}
