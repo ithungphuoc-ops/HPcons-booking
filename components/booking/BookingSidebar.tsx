@@ -12,6 +12,7 @@ import NotificationBell from '@/components/layout/NotificationBell'
 import AppLauncher from '@/components/layout/AppLauncher'
 import { groupIcon } from '@/components/booking/groupIcons'
 import type { User } from '@/types'
+import HighlightMatch from '@/components/ui/HighlightMatch'
 
 interface ResourceOption { id: string; name: string }
 interface GroupOption { id: string; name: string; icon: string; resources: ResourceOption[] }
@@ -119,7 +120,7 @@ function SidebarContent({ user, onNavigate }: { user: User | null; onNavigate?: 
                 onClick={() => setCollapsed((prev) => ({ ...prev, [group.id]: !prev[group.id] }))}
                 className="flex w-full items-center justify-between rounded px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#7c958a] hover:bg-white/5"
               >
-                <span className="truncate">{group.name}</span>
+                <span className="truncate"><HighlightMatch text={group.name} query={q} /></span>
                 {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
               </button>
               {!isCollapsed && (
@@ -132,7 +133,7 @@ function SidebarContent({ user, onNavigate }: { user: User | null; onNavigate?: 
                       className="flex items-center gap-2.5 rounded px-2 py-1.5 pl-4 hover:bg-white/5"
                     >
                       <Icon size={14} className="shrink-0 text-[#9fb3aa]" />
-                      <span className="truncate">{res.name}</span>
+                      <span className="truncate"><HighlightMatch text={res.name} query={q} /></span>
                     </Link>
                   ))}
                 </div>

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { ArrowLeft, Search, X } from 'lucide-react'
 import { groupIcon } from './groupIcons'
 import type { BookingGroupOption, BookingResourceOption } from './BookingFormDialog'
+import HighlightMatch from '@/components/ui/HighlightMatch'
 
 type GroupWithResources = BookingGroupOption & { description: string | null; resources: BookingResourceOption[] }
 
@@ -96,7 +97,7 @@ export default function QuickBookModal({
                       <Icon size={16} />
                     </div>
                     <div className="min-w-0">
-                      <div className="text-sm font-semibold" style={{ color: 'var(--hp-text-primary)' }}>{g.name}</div>
+                      <div className="text-sm font-semibold" style={{ color: 'var(--hp-text-primary)' }}><HighlightMatch text={g.name} query={query} /></div>
                       {g.description && <div className="truncate text-xs" style={{ color: 'var(--hp-text-desc)' }}>{g.description}</div>}
                     </div>
                   </button>
@@ -116,7 +117,7 @@ export default function QuickBookModal({
               >
                 <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: r.color }} />
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold" style={{ color: 'var(--hp-text-primary)' }}>{r.name}</div>
+                  <div className="text-sm font-semibold" style={{ color: 'var(--hp-text-primary)' }}><HighlightMatch text={r.name} query={query} /></div>
                   {(r.description || r.capacity != null) && (
                     <div className="truncate text-xs" style={{ color: 'var(--hp-text-desc)' }}>
                       {r.description}{r.description && r.capacity != null ? ' · ' : ''}{r.capacity != null ? `Sức chứa ${r.capacity}` : ''}

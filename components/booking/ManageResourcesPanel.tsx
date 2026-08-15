@@ -5,6 +5,7 @@ import { Plus, Pencil, Check, X, Paperclip } from 'lucide-react'
 import { GROUP_ICONS, groupIcon } from './groupIcons'
 import type { MemberOption } from './BookingFormDialog'
 import { reportActivity } from '@/lib/reportActivity'
+import HighlightMatch from '@/components/ui/HighlightMatch'
 
 type Attachment = { name: string; url: string }
 type RegistrationType = 'auto' | 'approval'
@@ -393,6 +394,7 @@ export default function ManageResourcesPanel({ groups, members, onChanged, isAdm
                   memberName={memberName}
                   onEdit={() => openEditResource(r)}
                   onToggle={() => toggleResourceActive(r)}
+                  search={search}
                   editForm={
                     <tr>
                       <td colSpan={8} className="px-3 py-2" style={{ background: 'var(--hp-card)' }}>
@@ -439,20 +441,21 @@ export default function ManageResourcesPanel({ groups, members, onChanged, isAdm
   )
 }
 
-function RowWithEdit({ r, editing, memberName, onEdit, onToggle, editForm }: {
+function RowWithEdit({ r, editing, memberName, onEdit, onToggle, editForm, search = '' }: {
   r: ResourceRow & { groupName: string }
   editing: boolean
   memberName: (id: string | null) => string
   onEdit: () => void
   onToggle: () => void
   editForm: React.ReactNode
+  search?: string
 }) {
   const isAuto = (r.registration_type ?? 'approval') === 'auto'
   return (
     <>
       <tr style={{ borderTop: '1px solid var(--hp-border)', opacity: r.is_active ? 1 : 0.55 }}>
         <td className="px-2 py-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: r.color }} /></td>
-        <td className="px-2 py-1.5" style={{ textDecoration: r.is_active ? 'none' : 'line-through' }}>{r.name}</td>
+        <td className="px-2 py-1.5" style={{ textDecoration: r.is_active ? 'none' : 'line-through' }}><HighlightMatch text={r.name} query={search} /></td>
         <td className="px-2 py-1.5" style={{ color: 'var(--hp-text-desc)' }}>{r.groupName}</td>
         <td className="px-2 py-1.5">
           <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={isAuto ? { background: '#FEF3C7', color: '#92400E' } : { background: 'var(--hp-card)', color: 'var(--hp-text-desc)' }}>
@@ -667,8 +670,8 @@ function ManagerPicker({ members, selected, onChange }: { members: MemberOption[
         <div className="absolute left-0 right-0 top-full z-10 max-h-40 overflow-y-auto rounded-lg" style={{ background: 'var(--hp-elevated)', border: '1px solid var(--hp-border)', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>
           {filtered.map((m) => (
             <div key={m.id} onClick={() => { onChange(m); setQuery('') }} className="cursor-pointer px-3 py-1.5 text-xs hover:opacity-80 flex items-center justify-between gap-2">
-              <span className="font-semibold">{m.full_name}</span>
-              {m.username && <span style={{ color: 'var(--hp-text-desc)' }}>@{m.username}</span>}
+              <span className="font-semibold"><HighlightMatch text={m.full_name} query={q} /></span>
+              {m.username && <span style={{ color: 'var(--hp-text-desc)' }}>@<HighlightMatch text={m.username} query={q} /></span>}
             </div>
           ))}
         </div>

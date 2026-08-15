@@ -7,6 +7,7 @@ import EmptyState from '@/components/booking/EmptyState'
 import PurposeFormDesigner from '@/components/booking/PurposeFormDesigner'
 import type { BookingFormField } from '@/lib/firestore/types'
 import { reportActivity } from '@/lib/reportActivity'
+import HighlightMatch from '@/components/ui/HighlightMatch'
 
 type Purpose = { id: string; name: string; is_active: boolean; creator_name: string | null; count: number; form_schema: BookingFormField[] }
 
@@ -124,6 +125,7 @@ export default function PurposesPage() {
                 onSaveEdit={() => saveEdit(p.id)} savingEdit={savingEdit}
                 designing={designingId === p.id}
                 onToggleDesign={() => setDesigningId((cur) => (cur === p.id ? null : p.id))}
+                search={search}
               />
               {designingId === p.id && (
                 <div className="px-4 pb-4">
@@ -153,6 +155,7 @@ export default function PurposesPage() {
               editing={editingId === p.id} editName={editName} onEditNameChange={setEditName}
               onStartEdit={() => startEdit(p)} onCancelEdit={() => setEditingId(null)}
               onSaveEdit={() => saveEdit(p.id)} savingEdit={savingEdit}
+              search={search}
             />
           ))}
           </div>
@@ -168,12 +171,13 @@ export default function PurposesPage() {
 
 function PurposeRow({
   p, last, isAdmin, onToggle, editing, editName, onEditNameChange, onStartEdit, onCancelEdit, onSaveEdit, savingEdit,
-  designing, onToggleDesign,
+  designing, onToggleDesign, search = '',
 }: {
   p: Purpose; last: boolean; isAdmin: boolean; onToggle: () => void
   editing: boolean; editName: string; onEditNameChange: (v: string) => void
   onStartEdit: () => void; onCancelEdit: () => void; onSaveEdit: () => void; savingEdit: boolean
   designing?: boolean; onToggleDesign?: () => void
+  search?: string
 }) {
   if (editing) {
     return (
@@ -193,7 +197,7 @@ function PurposeRow({
   return (
     <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: last ? 'none' : '1px solid var(--hp-divider)' }}>
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-semibold" style={{ color: p.is_active ? 'var(--hp-text-primary)' : 'var(--hp-text-disabled)', textDecoration: p.is_active ? 'none' : 'line-through' }}>{p.name}</div>
+        <div className="text-sm font-semibold" style={{ color: p.is_active ? 'var(--hp-text-primary)' : 'var(--hp-text-disabled)', textDecoration: p.is_active ? 'none' : 'line-through' }}><HighlightMatch text={p.name} query={search} /></div>
         <div className="text-xs" style={{ color: 'var(--hp-text-desc)' }}>
           {p.creator_name ? `Tạo bởi ${p.creator_name}` : 'Mặc định hệ thống'}{p.count > 0 ? ` · ${p.count} lần dùng` : ''}
         </div>
