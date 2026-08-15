@@ -1,6 +1,6 @@
 import {
   Clock, MapPin, Settings, BarChart3, FileCheck, CalendarClock, Send,
-  Warehouse, Briefcase, Receipt, Workflow as WorkflowIcon, Heart, Laptop, PenTool, ClipboardCheck, type LucideIcon,
+  Warehouse, Briefcase, Receipt, Workflow as WorkflowIcon, Heart, Laptop, PenTool, ClipboardCheck, Package, type LucideIcon,
 } from 'lucide-react'
 import type { Role } from '@/types'
 
@@ -134,6 +134,21 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-pkd.png`,
     href: 'https://pkd.hpcore.vn',
     rolesEndpoint: 'https://pkd.hpcore.vn/api/roles',
+  },
+  {
+    id: 'khoctr',
+    name: 'HPCons-KhoCtr',
+    description: 'Quản lý xuất nhập tồn kho công trình',
+    icon: Package, iconKey: 'Package',
+    color: 'bg-orange-600',
+    category: 'business',
+    // roles: chỉ quyết định tile có hiện trong Danh mục ứng dụng hay không.
+    // Vào được app hay không do chính app tự chặn (15/08/2026, phân quyền
+    // cấp 1): chỉ người được Sếp cấp app_permissions/{uid}.khoctr qua trang
+    // "Quản lý ứng dụng" mới vào được.
+    roles: ['admin', 'manager', 'employee'] as Role[],
+    href: 'https://khoctr.hpcore.vn',
+    rolesEndpoint: 'https://khoctr.hpcore.vn/api/roles',
   },
   {
     name: 'HPCons-CongNo',
