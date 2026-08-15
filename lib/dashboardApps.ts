@@ -6,6 +6,8 @@ import type { Role } from '@/types'
 
 export type AppRoleOption = { key: string; label: string }
 
+export type AppCategory = 'ops' | 'business'
+
 export type DashboardApp = {
   id?: string
   name: string
@@ -13,6 +15,7 @@ export type DashboardApp = {
   icon: LucideIcon
   iconKey: string
   color: string
+  category: AppCategory
   roles: Role[]
   image?: string
   comingSoon?: boolean
@@ -36,6 +39,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     description: 'Quản lý giờ vào/ra',
     icon: Clock, iconKey: 'Clock',
     color: 'bg-blue-500',
+    category: 'ops',
     href: `${ACCOUNT_BASE}/dashboard/attendance`,
     roles: ['admin', 'manager', 'employee'] as Role[],
   },
@@ -44,6 +48,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     description: 'Danh sách địa điểm',
     icon: MapPin, iconKey: 'MapPin',
     color: 'bg-green-500',
+    category: 'ops',
     href: `${ACCOUNT_BASE}/dashboard/worksites`,
     roles: ['admin', 'manager'] as Role[],
   },
@@ -52,6 +57,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     description: 'Nghỉ phép, tăng ca, phê duyệt',
     icon: FileCheck, iconKey: 'FileCheck',
     color: 'bg-rose-500',
+    category: 'ops',
     href: `${ACCOUNT_BASE}/dashboard/requests`,
     roles: ['admin', 'manager', 'employee'] as Role[],
     image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-request.png`,
@@ -61,6 +67,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     description: 'Đăng ký & phê duyệt nhóm',
     icon: Send, iconKey: 'Send',
     color: 'bg-sky-500',
+    category: 'ops',
     href: `${ACCOUNT_BASE}/dashboard/telegram-groups`,
     roles: ['admin', 'manager', 'employee'] as Role[],
     image: `${ACCOUNT_BASE}/landing-icons-3d/telegram.png`,
@@ -70,6 +77,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     description: 'Đặt phòng họp & xe',
     icon: CalendarClock, iconKey: 'CalendarClock',
     color: 'bg-teal-500',
+    category: 'ops',
     href: '/bookings',
     roles: ['admin', 'manager', 'employee'] as Role[],
     image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-booking.png`,
@@ -79,6 +87,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     description: 'Thống kê & xuất Excel',
     icon: BarChart3, iconKey: 'BarChart3',
     color: 'bg-orange-500',
+    category: 'ops',
     href: `${ACCOUNT_BASE}/dashboard/reports`,
     roles: ['admin', 'manager'] as Role[],
   },
@@ -87,6 +96,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     description: 'Hệ thống & phân quyền',
     icon: Settings, iconKey: 'Settings',
     color: 'bg-gray-500',
+    category: 'ops',
     href: `${ACCOUNT_BASE}/dashboard/settings`,
     roles: ['admin'] as Role[],
     image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-account.png`,
@@ -97,6 +107,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     description: 'Quản lý xuất nhập tồn vật tư, thiết bị',
     icon: Warehouse, iconKey: 'Warehouse',
     color: 'bg-amber-500',
+    category: 'business',
     roles: ['admin', 'manager', 'employee'] as Role[],
     image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-warehouse.png`,
     href: 'https://khoct.hpcore.vn',
@@ -107,6 +118,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     description: 'Quản lý công việc, bản vẽ và tiến độ Phòng Thiết kế',
     icon: PenTool, iconKey: 'PenTool',
     color: 'bg-violet-500',
+    category: 'business',
     roles: ['admin', 'manager', 'employee'] as Role[],
     image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-design.png`,
     href: 'https://tk.hpcore.vn',
@@ -117,6 +129,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     description: 'Quản lý khách hàng và cơ hội cho phòng kinh doanh',
     icon: Briefcase, iconKey: 'Briefcase',
     color: 'bg-indigo-500',
+    category: 'business',
     roles: ['admin', 'manager', 'employee'] as Role[],
     image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-pkd.png`,
     href: 'https://pkd.hpcore.vn',
@@ -127,6 +140,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     description: 'Theo dõi công nợ phải thu và dòng tiền',
     icon: Receipt, iconKey: 'Receipt',
     color: 'bg-lime-500',
+    category: 'business',
     roles: ['admin', 'manager', 'employee'] as Role[],
     image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-receivable.png`,
     href: 'https://congno.hpcore.vn',
@@ -136,6 +150,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     description: 'Quy trình duyệt liên phòng ban, theo dõi tiến độ',
     icon: WorkflowIcon, iconKey: 'Workflow',
     color: 'bg-cyan-500',
+    category: 'business',
     roles: ['admin', 'manager', 'employee'] as Role[],
     image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-workflow.png`,
     comingSoon: true,
@@ -145,6 +160,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     description: 'Hồ sơ và tiện ích cá nhân dành cho nhân viên',
     icon: Heart, iconKey: 'Heart',
     color: 'bg-pink-500',
+    category: 'business',
     roles: ['admin', 'manager', 'employee'] as Role[],
     image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-me.png`,
     comingSoon: true,
@@ -155,6 +171,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     description: 'Quản lý thiết bị, bàn giao và thu hồi tài sản',
     icon: Laptop, iconKey: 'Laptop',
     color: 'bg-emerald-500',
+    category: 'business',
     roles: ['admin', 'manager', 'employee'] as Role[],
     image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-itasset.png`,
     href: 'https://itasset.hpcore.vn',
@@ -165,6 +182,7 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     description: 'Nhóm đề xuất, phiếu, phê duyệt nội bộ',
     icon: ClipboardCheck, iconKey: 'ClipboardCheck',
     color: 'bg-fuchsia-500',
+    category: 'ops',
     roles: ['admin', 'manager', 'employee'] as Role[],
     href: 'https://request.hpcore.vn',
   },

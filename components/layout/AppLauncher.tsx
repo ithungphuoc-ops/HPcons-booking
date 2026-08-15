@@ -35,7 +35,6 @@ export default function AppLauncher({
     !ql || a.name.toLowerCase().includes(ql) || (a.description ?? '').toLowerCase().includes(ql)
 
   const apps: DashboardApp[] = DASHBOARD_APPS.filter(a => a.roles.includes(roleForApps))
-  const isBiz = (n: string) => n.startsWith('HPC')
 
   // Toàn bộ mục quản trị dưới đây thuộc app tổng (hpcons-portal), không phải
   // Booking — dùng href TUYỆT ĐỐI vì AppLauncher này chạy trong app Booking
@@ -67,8 +66,8 @@ export default function AppLauncher({
   ]
 
   const groups: { title: string; subtitle: string; items: LauncherItem[] }[] = [
-    { title: 'Nhân sự & Vận hành', subtitle: 'Chấm công, đơn từ, đặt phòng, báo cáo...', items: apps.filter(a => !isBiz(a.name)).filter(match) },
-    { title: 'Ứng dụng nghiệp vụ', subtitle: 'Kinh doanh, kho, tài sản, quy trình...', items: apps.filter(a => isBiz(a.name)).filter(match) },
+    { title: 'Nhân sự & Vận hành', subtitle: 'Chấm công, đơn từ, đặt phòng, báo cáo...', items: apps.filter(a => a.category === 'ops').filter(match) },
+    { title: 'Ứng dụng nghiệp vụ', subtitle: 'Kinh doanh, kho, tài sản, quy trình...', items: apps.filter(a => a.category === 'business').filter(match) },
     { title: 'Quản trị & Hệ thống', subtitle: 'Quản lý người dùng, phân quyền', items: adminItems.filter(match) },
   ].filter(g => g.items.length > 0)
 
