@@ -5,7 +5,7 @@ import { Plus, Pencil, Check, X, Paperclip } from 'lucide-react'
 import { GROUP_ICONS, groupIcon } from './groupIcons'
 import type { MemberOption } from './BookingFormDialog'
 import { reportActivity } from '@/lib/reportActivity'
-import HighlightMatch from '@/components/ui/HighlightMatch'
+import HighlightMatch, { normalizeSearch } from '@/components/ui/HighlightMatch'
 
 type Attachment = { name: string; url: string }
 type RegistrationType = 'auto' | 'approval'
@@ -239,7 +239,7 @@ export default function ManageResourcesPanel({ groups, members, onChanged, isAdm
   const [filterRegType, setFilterRegType] = useState<'all' | RegistrationType>('all')
 
   const filteredResources = allResources.filter((r) => {
-    if (search.trim() && !r.name.toLowerCase().includes(search.trim().toLowerCase())) return false
+    if (search.trim() && !normalizeSearch(r.name).includes(normalizeSearch(search.trim()))) return false
     if (filterGroupId && r.groupId !== filterGroupId) return false
     if (filterStatus === 'open' && !r.is_active) return false
     if (filterStatus === 'closed' && r.is_active) return false
@@ -640,10 +640,10 @@ function BookingWindowPicker({ value, onChange }: { value: BookingWindow | null;
 // cho chọn ĐÚNG 1 người thay vì nhiều.
 function ManagerPicker({ members, selected, onChange }: { members: MemberOption[]; selected: MemberOption | null; onChange: (next: MemberOption | null) => void }) {
   const [query, setQuery] = useState('')
-  const q = query.replace(/^@/, '').trim().toLowerCase()
+  const q = normalizeSearch(query.replace(/^@/, '').trim())
   const filtered = q.length > 0
     ? members.filter((m) =>
-        (m.full_name.toLowerCase().includes(q) || (m.username && m.username.toLowerCase().includes(q))) &&
+        (normalizeSearch(m.full_name).includes(q) || (m.username && normalizeSearch(m.username).includes(q))) &&
         m.id !== selected?.id)
     : []
 
@@ -682,10 +682,10 @@ function ManagerPicker({ members, selected, onChange }: { members: MemberOption[
 
 function FollowerPicker({ members, selected, onChange }: { members: MemberOption[]; selected: MemberOption[]; onChange: (next: MemberOption[]) => void }) {
   const [query, setQuery] = useState('')
-  const q = query.replace(/^@/, '').trim().toLowerCase()
+  const q = normalizeSearch(query.replace(/^@/, '').trim())
   const filtered = q.length > 0
     ? members.filter((m) =>
-        (m.full_name.toLowerCase().includes(q) || (m.username && m.username.toLowerCase().includes(q))) &&
+        (normalizeSearch(m.full_name).includes(q) || (m.username && normalizeSearch(m.username).includes(q))) &&
         !selected.find((s) => s.id === m.id))
     : []
 

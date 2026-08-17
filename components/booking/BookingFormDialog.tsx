@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { normalizeSearch } from '@/components/ui/HighlightMatch'
 import { X, Paperclip, CalendarClock } from 'lucide-react'
 import BookingDynamicFields, { type DynamicValue } from './BookingDynamicFields'
 import type { BookingFormField } from '@/lib/firestore/types'
@@ -141,10 +142,10 @@ export default function BookingFormDialog({
   )
   const selectedManager = members.find((m) => m.id === managerId) ?? null
   const managerMatches = useMemo(() => {
-    const q = managerQuery.trim().toLowerCase().replace(/^@/, '')
+    const q = normalizeSearch(managerQuery.trim()).replace(/^@/, '')
     if (!q) return managerOptions
     return members
-      .filter((m) => m.full_name.toLowerCase().includes(q) || (m.username && m.username.toLowerCase().includes(q)))
+      .filter((m) => normalizeSearch(m.full_name).includes(q) || (m.username && normalizeSearch(m.username).includes(q)))
       .slice(0, 8)
   }, [managerQuery, managerOptions, members])
 
@@ -173,11 +174,11 @@ export default function BookingFormDialog({
   // Từ 28/07/2026: khớp thêm theo username ngắn (vd "@phucBM", sinh ở
   // hpcons-portal — xem lib/username.ts bên đó) chứ không chỉ tên đầy đủ,
   // đúng thói quen gõ @mention thay vì phải nhớ/gõ cả họ tên dễ trùng.
-  const followerQuery = followerInput.replace(/^@/, '').trim().toLowerCase()
+  const followerQuery = normalizeSearch(followerInput.replace(/^@/, '').trim())
   const filteredMembers = followerQuery.length > 0
     ? members.filter((m) =>
-        (m.full_name.toLowerCase().includes(followerQuery) ||
-          (m.username && m.username.toLowerCase().includes(followerQuery))) &&
+        (normalizeSearch(m.full_name).includes(followerQuery) ||
+          (m.username && normalizeSearch(m.username).includes(followerQuery))) &&
         !followers.find((f) => f.id === m.id))
     : []
 

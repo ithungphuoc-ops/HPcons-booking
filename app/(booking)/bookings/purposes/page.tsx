@@ -7,7 +7,7 @@ import EmptyState from '@/components/booking/EmptyState'
 import PurposeFormDesigner from '@/components/booking/PurposeFormDesigner'
 import type { BookingFormField } from '@/lib/firestore/types'
 import { reportActivity } from '@/lib/reportActivity'
-import HighlightMatch from '@/components/ui/HighlightMatch'
+import HighlightMatch, { normalizeSearch } from '@/components/ui/HighlightMatch'
 
 type Purpose = { id: string; name: string; is_active: boolean; creator_name: string | null; count: number; form_schema: BookingFormField[] }
 
@@ -84,7 +84,7 @@ export default function PurposesPage() {
     }
   }
 
-  const filtered = search ? purposes.filter((p) => p.name.toLowerCase().includes(search.toLowerCase())) : purposes
+  const filtered = search ? purposes.filter((p) => normalizeSearch(p.name).includes(normalizeSearch(search))) : purposes
   const active = filtered.filter((p) => p.is_active)
   const inactive = filtered.filter((p) => !p.is_active)
 

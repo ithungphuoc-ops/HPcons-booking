@@ -12,7 +12,7 @@ import NotificationBell from '@/components/layout/NotificationBell'
 import AppLauncher from '@/components/layout/AppLauncher'
 import { groupIcon } from '@/components/booking/groupIcons'
 import type { User } from '@/types'
-import HighlightMatch from '@/components/ui/HighlightMatch'
+import HighlightMatch, { normalizeSearch } from '@/components/ui/HighlightMatch'
 
 interface ResourceOption { id: string; name: string }
 interface GroupOption { id: string; name: string; icon: string; resources: ResourceOption[] }
@@ -42,11 +42,11 @@ function SidebarContent({ user, onNavigate }: { user: User | null; onNavigate?: 
     router.refresh()
   }
 
-  const q = query.trim().toLowerCase()
+  const q = normalizeSearch(query.trim())
   const filteredGroups = q
     ? groups
-        .map((g) => ({ ...g, resources: g.resources.filter((r) => r.name.toLowerCase().includes(q)) }))
-        .filter((g) => g.name.toLowerCase().includes(q) || g.resources.length > 0)
+        .map((g) => ({ ...g, resources: g.resources.filter((r) => normalizeSearch(r.name).includes(q)) }))
+        .filter((g) => normalizeSearch(g.name).includes(q) || g.resources.length > 0)
     : groups
 
   return (

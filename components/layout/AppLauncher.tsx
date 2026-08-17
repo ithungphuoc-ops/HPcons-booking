@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import HighlightMatch, { normalizeSearch } from '@/components/ui/HighlightMatch'
 import { useState } from 'react'
 import { X, Search, Users, Network, Users2, UserPlus, ShieldCheck, History, type LucideIcon } from 'lucide-react'
 import { DASHBOARD_APPS, type DashboardApp } from '@/lib/dashboardApps'
@@ -30,9 +31,9 @@ export default function AppLauncher({
   const role = (user?.role ?? 'employee') as Role
   const roleForApps: Role = role === 'owner' ? 'admin' : role
 
-  const ql = q.trim().toLowerCase()
+  const ql = normalizeSearch(q.trim())
   const match = (a: LauncherItem) =>
-    !ql || a.name.toLowerCase().includes(ql) || (a.description ?? '').toLowerCase().includes(ql)
+    !ql || normalizeSearch(a.name).includes(ql) || normalizeSearch(a.description ?? '').includes(ql)
 
   const apps: DashboardApp[] = DASHBOARD_APPS.filter(a => a.roles.includes(roleForApps))
 
@@ -128,20 +129,6 @@ export default function AppLauncher({
   )
 }
 
-/** Tô sáng phần chữ khớp với từ khoá tìm kiếm — plain-match, khớp đúng luật lọc list ở trên. */
-function HighlightMatch({ text, query }: { text: string; query: string }) {
-  const q = query.trim()
-  if (!q) return <>{text}</>
-  const index = text.toLowerCase().indexOf(q.toLowerCase())
-  if (index === -1) return <>{text}</>
-  return (
-    <>
-      {text.slice(0, index)}
-      <mark className="rounded bg-green-100 px-0.5 font-semibold text-green-800">{text.slice(index, index + q.length)}</mark>
-      {text.slice(index + q.length)}
-    </>
-  )
-}
 
 function AppTile({ app, onNavigate, query }: { app: LauncherItem; onNavigate: () => void; query: string }) {
   const Icon = app.icon

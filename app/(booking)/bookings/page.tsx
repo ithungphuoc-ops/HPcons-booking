@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { normalizeSearch } from '@/components/ui/HighlightMatch'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Plus, RefreshCw, Clock3, CalendarClock, Star, Target, BarChart3, Settings2, ChevronLeft, ChevronRight, Search } from 'lucide-react'
@@ -151,12 +152,12 @@ function BookingsPageInner() {
   let shown = tabRows[tab]
   if (groupFilter) shown = shown.filter((b) => b.resource?.group_id === groupFilter)
   if (searchQuery.trim()) {
-    const q = searchQuery.trim().toLowerCase()
+    const q = normalizeSearch(searchQuery.trim())
     shown = shown.filter((b) =>
-      b.title.toLowerCase().includes(q) ||
-      (b.resource?.name.toLowerCase().includes(q) ?? false) ||
-      (b.user?.full_name.toLowerCase().includes(q) ?? false) ||
-      (b.user?.department?.toLowerCase().includes(q) ?? false),
+      normalizeSearch(b.title).includes(q) ||
+      (b.resource ? normalizeSearch(b.resource.name).includes(q) : false) ||
+      (b.user ? normalizeSearch(b.user.full_name).includes(q) : false) ||
+      (b.user?.department ? normalizeSearch(b.user.department).includes(q) : false),
     )
   }
 

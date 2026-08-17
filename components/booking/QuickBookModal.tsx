@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { ArrowLeft, Search, X } from 'lucide-react'
 import { groupIcon } from './groupIcons'
 import type { BookingGroupOption, BookingResourceOption } from './BookingFormDialog'
-import HighlightMatch from '@/components/ui/HighlightMatch'
+import HighlightMatch, { normalizeSearch } from '@/components/ui/HighlightMatch'
 
 type GroupWithResources = BookingGroupOption & { description: string | null; resources: BookingResourceOption[] }
 
@@ -27,7 +27,7 @@ export default function QuickBookModal({
   const activeGroup = groups.find((g) => g.id === groupId) ?? null
 
   const filteredGroups = useMemo(
-    () => (query ? groups.filter((g) => g.name.toLowerCase().includes(query.toLowerCase())) : groups),
+    () => (query ? groups.filter((g) => normalizeSearch(g.name).includes(normalizeSearch(query))) : groups),
     [groups, query],
   )
   const filteredResources = useMemo(
