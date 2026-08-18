@@ -1,22 +1,51 @@
 'use client'
 
-import Link from 'next/link'
+// AppLauncher — danh mục ứng dụng công ty, chuẩn thị giác theo mẫu app tổng
+// (hpcons-portal/components/layout/AppLauncher.tsx). Danh sách app lấy SỐNG từ
+// account.hpcore.vn/api/apps (nguồn duy nhất) — không còn chép tay từ
+// lib/dashboardApps.ts nữa, tránh lệch dữ liệu giữa các app con.
 import HighlightMatch, { normalizeSearch } from '@/components/ui/HighlightMatch'
-import { useState } from 'react'
-import { X, Search, Users, Network, Users2, UserPlus, ShieldCheck, History, type LucideIcon } from 'lucide-react'
-import { DASHBOARD_APPS, type DashboardApp } from '@/lib/dashboardApps'
-import type { Role, User } from '@/types'
+import { useEffect, useState } from 'react'
+import {
+  AppWindow, BarChart3, Briefcase, CalendarClock, ClipboardCheck, Clock, FileCheck, Gavel,
+  Heart, Laptop, MapPin, PenTool, Receipt, Search, Send, Settings, Warehouse, Workflow, X,
+  type LucideIcon,
+} from 'lucide-react'
+import type { User } from '@/types'
 
-type LauncherItem = {
+const APPS_API = 'https://account.hpcore.vn/api/apps'
+const HPCORE_DASHBOARD_URL = 'https://account.hpcore.vn/dashboard'
+const HPCORE_PROFILE_URL = 'https://account.hpcore.vn/profile'
+const CURRENT_APP_HOST = 'booking.hpcore.vn'
+
+// Cùng bộ khoá icon với hpcons-portal/lib/dashboardApps.ts — app nào chưa có
+// trong danh sách này thì rơi về icon mặc định (AppWindow).
+const ICONS: Record<string, LucideIcon> = {
+  Clock, MapPin, FileCheck, Send, CalendarClock, BarChart3, Settings,
+  Warehouse, PenTool, Briefcase, Receipt, Workflow, Heart, Laptop, ClipboardCheck, Gavel,
+}
+
+type RemoteApp = {
   name: string
   description?: string
-  icon: LucideIcon
-  color: string
-  image?: string
-  href?: string
+  iconKey?: string
+  color?: string
+  category?: 'ops' | 'business'
+  image?: string | null
+  href?: string | null
   comingSoon?: boolean
-  launchDate?: string
+  launchDate?: string | null
 }
+
+/**
+ * app.color trả về từ API là chuỗi Tailwind (vd "bg-blue-500") đọc lúc CHẠY,
+ * Tailwind quét mã nguồn lúc BUILD nên không thấy được — phải liệt kê literal
+ * ở đây để class được biên dịch ra CSS (bài học 31/07/2026 ở ttcuochop).
+ * Đủ bộ màu hiện có trong hpcons-portal/lib/dashboardApps.ts:
+ * bg-amber-500 bg-blue-500 bg-cyan-500 bg-emerald-500 bg-fuchsia-500 bg-gray-500 bg-green-500 bg-orange-600
+ * bg-indigo-500 bg-lime-500 bg-orange-500 bg-pink-500 bg-purple-500 bg-red-500 bg-rose-500
+ * bg-sky-500 bg-teal-500 bg-violet-500 bg-yellow-500 bg-slate-500
+ */
 
 // 'YYYY-MM-DD' -> 'dd/MM' (tách chuỗi trực tiếp, tránh lệch múi giờ khi parse Date)
 function formatLaunchDate(iso: string): string {
@@ -25,54 +54,28 @@ function formatLaunchDate(iso: string): string {
 }
 
 export default function AppLauncher({
-  user, isApprover, isAdmin, isOwner, onClose, onLogout,
-}: { user: User | null; isApprover: boolean; isAdmin: boolean; isOwner: boolean; onClose: () => void; onLogout: () => void }) {
+  user, onClose, onLogout,
+}: { user: User | null; onClose: () => void; onLogout: () => void }) {
   const [q, setQ] = useState('')
-  const role = (user?.role ?? 'employee') as Role
-  const roleForApps: Role = role === 'owner' ? 'admin' : role
+  const [apps, setApps] = useState<RemoteApp[] | null>(null)
+
+  useEffect(() => {
+    let ok = true
+    fetch(APPS_API)
+      .then((r) => r.json())
+      .then((d) => { if (ok) setApps(Array.isArray(d.apps) ? d.apps : []) })
+      .catch(() => { if (ok) setApps([]) })
+    return () => { ok = false }
+  }, [])
 
   const ql = normalizeSearch(q.trim())
-  const match = (a: LauncherItem) =>
+  const match = (a: RemoteApp) =>
     !ql || normalizeSearch(a.name).includes(ql) || normalizeSearch(a.description ?? '').includes(ql)
+  const list = apps ?? []
 
-  const apps: DashboardApp[] = DASHBOARD_APPS.filter(a => a.roles.includes(roleForApps))
-
-  // Toàn bộ mục quản trị dưới đây thuộc app tổng (hpcons-portal), không phải
-  // Booking — dùng href TUYỆT ĐỐI vì AppLauncher này chạy trong app Booking
-  // độc lập, không còn nằm chung deploy với các trang /dashboard/* nữa.
-  const ACCOUNT_BASE = 'https://account.hpcore.vn'
-  const adminItems: LauncherItem[] = [
-    ...(isApprover ? [
-      { name: 'Thành viên', description: 'Quản lý nhân sự', icon: Users, color: 'bg-slate-500', href: `${ACCOUNT_BASE}/dashboard/members` },
-      { name: 'Nhóm', description: 'Đơn vị / phòng ban', icon: Network, color: 'bg-slate-500', href: `${ACCOUNT_BASE}/dashboard/units` },
-    ] : []),
-    // Nhóm thành viên linh hoạt (khác "Nhóm" = đơn vị org-chart cứng ở trên)
-    // — quản trị nội bộ app tổng, cùng cấp admin như Thành viên/Đơn vị.
-    ...(isAdmin ? [
-      { name: 'Nhóm thành viên', description: 'Nhóm linh hoạt cắt ngang phòng ban', icon: Users2, color: 'bg-slate-500', href: `${ACCOUNT_BASE}/dashboard/member-groups` },
-    ] : []),
-    { name: 'TK Khách', description: 'Tài khoản khách', icon: UserPlus, color: 'bg-slate-500', href: `${ACCOUNT_BASE}/dashboard/guests` },
-    // Chỉ owner (không phải admin/manager) — gán quyền cho từng ứng dụng
-    // (con lẫn nội bộ), theo mô hình Base Account: chỉ Owner chỉ định App Admin.
-    ...(isOwner ? DASHBOARD_APPS.filter(a => a.rolesEndpoint || a.internalRoles).map(a => ({
-      // "HPC Warehouse" -> "Warehouse" (có dấu cách) và "HPCons-KhoCtr" -> "KhoCtr"
-      // (không dấu cách, gạch nối) — 2 kiểu đặt tên khác nhau trong hệ sinh thái,
-      // regex cũ chỉ cắt đúng chữ "HPC " nên "HPCons-KhoCtr" bị cắt thành "ons-KhoCtr".
-      name: `Quyền ${a.name.replace(/^HPC(?:ons)?[\s-]*/, '')}`,
-      description: `Gán vai trò nhân viên trong ${a.name}`,
-      icon: ShieldCheck,
-      color: 'bg-slate-500',
-      href: `${ACCOUNT_BASE}/dashboard/apps/${a.id}`,
-    })) : []),
-    ...(isAdmin ? [
-      { name: 'Nhật ký hoạt động', description: 'Hoạt động quản trị & lịch sử đăng nhập', icon: History, color: 'bg-slate-500', href: `${ACCOUNT_BASE}/dashboard/activity` },
-    ] : []),
-  ]
-
-  const groups: { title: string; subtitle: string; items: LauncherItem[] }[] = [
-    { title: 'Nhân sự & Vận hành', subtitle: 'Chấm công, đơn từ, đặt phòng, báo cáo...', items: apps.filter(a => a.category === 'ops').filter(match) },
-    { title: 'Ứng dụng nghiệp vụ', subtitle: 'Kinh doanh, kho, tài sản, quy trình...', items: apps.filter(a => a.category === 'business').filter(match) },
-    { title: 'Quản trị & Hệ thống', subtitle: 'Quản lý người dùng, phân quyền', items: adminItems.filter(match) },
+  const groups: { title: string; subtitle: string; items: RemoteApp[] }[] = [
+    { title: 'Nhân sự & Vận hành', subtitle: 'Chấm công, đơn từ, đặt phòng, báo cáo...', items: list.filter(a => a.category !== 'business').filter(match) },
+    { title: 'Ứng dụng nghiệp vụ', subtitle: 'Kinh doanh, kho, tài sản, quy trình...', items: list.filter(a => a.category === 'business').filter(match) },
   ].filter(g => g.items.length > 0)
 
   return (
@@ -85,15 +88,16 @@ export default function AppLauncher({
               // eslint-disable-next-line @next/next/no-img-element
               <img src={user.avatar_url} alt={user.full_name} className="w-11 h-11 rounded-full object-cover flex-shrink-0" />
             ) : (
-              <div className="w-11 h-11 rounded-full bg-[#1B75BB] flex items-center justify-center text-white font-bold flex-shrink-0">
+              <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0" style={{ backgroundColor: 'var(--hp-primary, #096AA7)' }}>
                 {user?.full_name?.charAt(0) ?? 'U'}
               </div>
             )}
             <div className="min-w-0">
               <p className="font-semibold text-gray-900 truncate">{user?.full_name ?? 'Cá nhân'}</p>
               <p className="text-xs text-gray-400">
-                {apps.length} ứng dụng ·{' '}
-                <a href="https://account.hpcore.vn/profile" className="text-blue-600 hover:underline">Tài khoản</a> ·{' '}
+                {list.length} ứng dụng ·{' '}
+                <a href={HPCORE_DASHBOARD_URL} className="text-blue-600 hover:underline">Về App Tổng</a> ·{' '}
+                <a href={HPCORE_PROFILE_URL} className="text-blue-600 hover:underline">Tài khoản</a> ·{' '}
                 <button onClick={onLogout} className="text-blue-600 hover:underline">Đăng xuất</button>
               </p>
             </div>
@@ -103,7 +107,7 @@ export default function AppLauncher({
             <input
               value={q} onChange={e => setQ(e.target.value)} autoFocus
               placeholder="Tìm kiếm ứng dụng"
-              className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <button onClick={onClose} aria-label="Đóng" className="hidden sm:flex w-8 h-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100">
@@ -113,28 +117,33 @@ export default function AppLauncher({
 
         {/* Nhóm ứng dụng */}
         <div className="p-5 max-h-[70vh] overflow-y-auto space-y-7">
-          {groups.length === 0 && <p className="text-center text-gray-400 py-10">Không tìm thấy ứng dụng phù hợp</p>}
-          {groups.map(g => (
-            <div key={g.title}>
-              <p className="font-semibold text-gray-800">{g.title}</p>
-              <p className="text-xs text-gray-400 mb-3">{g.subtitle}</p>
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                {g.items.map(app => <AppTile key={app.name} app={app} onNavigate={onClose} query={ql} />)}
+          {apps === null ? (
+            <p className="text-center text-gray-400 py-10">Đang tải danh sách ứng dụng…</p>
+          ) : groups.length === 0 ? (
+            <p className="text-center text-gray-400 py-10">Không tìm thấy ứng dụng phù hợp</p>
+          ) : (
+            groups.map(g => (
+              <div key={g.title}>
+                <p className="font-semibold text-gray-800">{g.title}</p>
+                <p className="text-xs text-gray-400 mb-3">{g.subtitle}</p>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                  {g.items.map(app => <AppTile key={app.name} app={app} onNavigate={onClose} query={ql} />)}
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>
   )
 }
 
-
-function AppTile({ app, onNavigate, query }: { app: LauncherItem; onNavigate: () => void; query: string }) {
-  const Icon = app.icon
+function AppTile({ app, onNavigate, query }: { app: RemoteApp; onNavigate: () => void; query: string }) {
+  const Icon = (app.iconKey && ICONS[app.iconKey]) || AppWindow
+  const current = !!app.href && app.href.includes(CURRENT_APP_HOST)
   const inner = (
     <>
-      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105 ${app.image ? 'bg-white border border-gray-100' : app.color} ${app.comingSoon ? 'opacity-50' : ''}`}>
+      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105 ${app.image ? 'bg-white border border-gray-100' : (app.color ?? 'bg-slate-500')} ${app.comingSoon ? 'opacity-50' : ''}`}>
         {app.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={app.image} alt={app.name} className="w-full h-full object-cover scale-[1.15]" />
@@ -142,7 +151,12 @@ function AppTile({ app, onNavigate, query }: { app: LauncherItem; onNavigate: ()
           <Icon size={26} className="text-white" />
         )}
       </div>
-      <p className={`text-xs font-medium text-center leading-tight ${app.comingSoon ? 'text-gray-400' : 'text-gray-700'}`}><HighlightMatch text={app.name} query={query} /></p>
+      <p className={`text-xs font-medium text-center leading-tight ${app.comingSoon ? 'text-gray-400' : 'text-gray-700'}`}>
+        <HighlightMatch text={app.name} query={query} />
+      </p>
+      {current && (
+        <span className="text-[9px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">Đang dùng</span>
+      )}
       {app.comingSoon && (
         <span className="text-[9px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">
           {app.launchDate ? `Ra mắt ${formatLaunchDate(app.launchDate)}` : 'Sắp ra mắt'}
@@ -155,6 +169,6 @@ function AppTile({ app, onNavigate, query }: { app: LauncherItem; onNavigate: ()
     const title = app.launchDate ? `Ra mắt ${formatLaunchDate(app.launchDate)}` : 'Sắp ra mắt'
     return <div className={`${cls} cursor-default`} title={title}>{inner}</div>
   }
-  if (/^https?:\/\//.test(app.href)) return <a href={app.href} target="_blank" rel="noopener noreferrer" onClick={onNavigate} className={cls}>{inner}</a>
-  return <Link href={app.href} onClick={onNavigate} className={cls}>{inner}</Link>
+  if (current) return <div className={cls}>{inner}</div>
+  return <a href={app.href} target="_blank" rel="noopener noreferrer" onClick={onNavigate} className={cls}>{inner}</a>
 }

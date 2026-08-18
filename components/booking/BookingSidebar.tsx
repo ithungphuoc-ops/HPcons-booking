@@ -24,10 +24,6 @@ function SidebarContent({ user, onNavigate }: { user: User | null; onNavigate?: 
   const [query, setQuery] = useState('')
   const [launcherOpen, setLauncherOpen] = useState(false)
 
-  const isApprover = user?.role === 'owner' || user?.role === 'admin' || user?.role === 'manager'
-  const isAdmin = user?.role === 'owner' || user?.role === 'admin'
-  const isOwner = user?.role === 'owner'
-
   useEffect(() => {
     fetch('/api/booking-resources')
       .then((r) => r.json())
@@ -165,9 +161,6 @@ function SidebarContent({ user, onNavigate }: { user: User | null; onNavigate?: 
       {launcherOpen && (
         <AppLauncher
           user={user}
-          isApprover={isApprover}
-          isAdmin={isAdmin}
-          isOwner={isOwner}
           onClose={() => setLauncherOpen(false)}
           onLogout={handleLogout}
         />
