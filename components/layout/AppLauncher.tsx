@@ -6,6 +6,7 @@
 // lib/dashboardApps.ts nữa, tránh lệch dữ liệu giữa các app con.
 import HighlightMatch, { normalizeSearch } from '@/components/ui/HighlightMatch'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   AppWindow, BarChart3, Briefcase, CalendarClock, ClipboardCheck, Clock, FileCheck, Gavel,
   Heart, Laptop, MapPin, PenTool, Receipt, Search, Send, Settings, Warehouse, Workflow, X,
@@ -78,7 +79,13 @@ export default function AppLauncher({
     { title: 'Ứng dụng nghiệp vụ', subtitle: 'Kinh doanh, kho, tài sản, quy trình...', items: list.filter(a => a.category === 'business').filter(match) },
   ].filter(g => g.items.length > 0)
 
-  return (
+  // Portal ra document.body: sidebar di động dùng transition-transform (kể cả
+  // translate-x-0) làm chính <aside> đó trở thành khung chứa MỚI cho mọi phần
+  // tử con position:fixed (đúng theo spec CSS) — panel này lồng bên trong nên
+  // bị nhốt/cắt trong bề ngang ngăn kéo thay vì phủ toàn màn hình (bug thật
+  // phát hiện qua code review 18/08/2026, xảy ra trên điện thoại). Portal
+  // thoát hẳn ra ngoài mọi tổ tiên transform, fixed luôn tính theo viewport.
+  return createPortal(
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-start p-3 sm:py-4 sm:pl-24 sm:pr-4 overflow-y-auto" onClick={onClose}>
       <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl" onClick={e => e.stopPropagation()}>
         {/* Header */}
@@ -134,7 +141,8 @@ export default function AppLauncher({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

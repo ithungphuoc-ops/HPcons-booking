@@ -1,11 +1,19 @@
 import { NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase/admin'
+import { requireSession } from '@/lib/session'
 import { listAllUsers, toUserJson } from '@/lib/firestore/users'
 
 // Bản chỉ-đọc (GET) của app/api/members/route.ts (hpcons-portal) — Booking
 // chỉ cần danh sách nhân viên để chọn người theo dõi/quản lý/@mention, không
 // cần quyền tạo/sửa nhân viên (ở lại app tổng). Xem plan tách Booking.
+//
+// Bắt đăng nhập (thêm 18/08/2026, code review phát hiện): route này trả cả
+// email + SĐT toàn bộ nhân viên, trước đây KHÔNG kiểm tra phiên đăng nhập gì
+// cả — ai biết đúng địa chỉ là xem được, dù chưa từng đăng nhập Booking.
 export async function GET() {
+  const session = await requireSession().catch(() => null)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const [users, deptSnap] = await Promise.all([
     listAllUsers(),
     adminDb.collection('departments').get(),
