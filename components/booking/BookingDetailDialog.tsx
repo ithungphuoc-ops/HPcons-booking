@@ -47,6 +47,19 @@ export default function BookingDetailDialog({
   onEdit?: (detail: BookingDetail) => void
 }) {
   const [detail, setDetail] = useState<BookingDetail | null>(null)
+  // Ảnh thật người dùng (uid → url) từ /api/members — tải 1 lần khi mở dialog.
+  const [avatarByUid, setAvatarByUid] = useState<Record<string, string | null>>({})
+  useEffect(() => {
+    fetch('/api/members')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { id: string; avatar_url?: string | null }[] | null) => {
+        // API trả MẢNG user thẳng (không bọc trong object).
+        const map: Record<string, string | null> = {}
+        for (const m of Array.isArray(data) ? data : []) map[m.id] = m.avatar_url ?? null
+        setAvatarByUid(map)
+      })
+      .catch(() => {})
+  }, [])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [showReject, setShowReject] = useState(false)
@@ -210,7 +223,7 @@ export default function BookingDetailDialog({
                   <div className="flex flex-col gap-2">
                     {d.followers.map((f) => (
                       <div key={f.id} className="flex items-center gap-2">
-                        <Avatar name={f.name} />
+                        <Avatar name={f.name} url={avatarByUid[f.id]} />
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium" style={{ color: 'var(--hp-text-primary)' }}>{f.name}</div>
                           {f.title && <div className="truncate text-xs" style={{ color: 'var(--hp-text-desc)' }}>{f.title}</div>}
@@ -268,7 +281,7 @@ export default function BookingDetailDialog({
                 {d.approvals.length === 0 && <div className="text-xs" style={{ color: 'var(--hp-text-desc)' }}>Tự động duyệt — không cần người duyệt</div>}
                 {d.approvals.map((a) => (
                   <div key={a.approver_id + a.level} className="mb-2.5 flex items-center gap-2">
-                    <Avatar name={a.approver_name} size={30} />
+                    <Avatar name={a.approver_name} url={avatarByUid[a.approver_id]} size={30} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs font-semibold" style={{ color: 'var(--hp-text-primary)' }}>{a.approver_name}</div>
                       {a.approver_title && <div className="truncate text-[11px]" style={{ color: 'var(--hp-text-desc)' }}>{a.approver_title}</div>}
@@ -289,7 +302,7 @@ export default function BookingDetailDialog({
                   )}
                   {d.resource.followers && d.resource.followers.length > 0 && (
                     <div className="mb-1.5 flex flex-wrap gap-1.5">
-                      {d.resource.followers.map((f) => <Avatar key={f.id} name={f.name} size={22} />)}
+                      {d.resource.followers.map((f) => <Avatar key={f.id} name={f.name} url={avatarByUid[f.id]} size={22} />)}
                     </div>
                   )}
                   {d.resource.description && (
@@ -344,13 +357,24 @@ function InfoRow({ icon, label, value, multiline }: { icon: React.ReactNode; lab
   )
 }
 
-function Avatar({ name, size = 28 }: { name: string; size?: number }) {
-  const colors = ['#096AA7', '#60BB46', '#FFA726', '#E53935', '#8b5cf6', '#06b6d4']
-  const idx = name ? name.charCodeAt(0) % colors.length : 0
+/** Avatar CHUẨN hệ sinh thái (17/08/2026): ảnh thật từ app tổng, thiếu/lỗi →
+ * chữ đầu+cuối tên nền primary #096AA7 (bỏ kiểu 6 màu ngẫu nhiên cũ). */
+function Avatar({ name, url, size = 28 }: { name: string; url?: string | null; size?: number }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
+  if (url && failedUrl !== url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={url} alt={name} width={size} height={size} loading="lazy"
+        onError={() => setFailedUrl(url)}
+        className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />
+    )
+  }
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean)
+  const initials = parts.length === 0 ? '?' : (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase()
   return (
     <div className="flex shrink-0 items-center justify-center rounded-full font-bold text-white"
-      style={{ width: size, height: size, fontSize: size * 0.4, background: colors[idx] }}>
-      {name?.[0] ?? '?'}
+      style={{ width: size, height: size, fontSize: Math.max(9, size * 0.36), background: 'var(--hp-primary, #096AA7)' }}>
+      {initials}
     </div>
   )
 }
