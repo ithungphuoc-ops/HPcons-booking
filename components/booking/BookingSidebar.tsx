@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { signOut } from 'firebase/auth'
 import {
-  BellRing, ChevronDown, ChevronRight, Grid3x3, LogOut, Menu, Plus, Search, Target, BarChart3, X,
+  BellRing, ChevronDown, ChevronRight, Gift, Grid3x3, LogOut, Menu, Plus, Search, Target, BarChart3, X,
 } from 'lucide-react'
 import { getFirebaseAuth } from '@/lib/firebase/client'
 import NotificationBell from '@/components/layout/NotificationBell'
@@ -60,6 +60,20 @@ function SidebarContent({ user, onNavigate }: { user: User | null; onNavigate?: 
         </button>
         <div className="flex items-center gap-1 [&_button]:h-8 [&_button]:w-8 [&_button]:text-[#9fb3aa] [&_button]:hover:bg-white/5 [&_button]:hover:text-white">
           <NotificationBell />
+          <a
+            href="https://quacuatoi.hpcore.vn"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Quà của tôi"
+            aria-label="Quà của tôi"
+            className="relative flex h-8 w-8 items-center justify-center rounded-xl text-[#9fb3aa] hover:bg-white/5 hover:text-white"
+          >
+            <Gift size={16} />
+            {/* Số điểm tạm để 0 — chưa nối UrBox thật, xem hpcons-quacuatoi/openspec */}
+            <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold leading-none text-white">
+              0
+            </span>
+          </a>
           <Link
             href="/bookings/settings/notifications"
             onClick={onNavigate}
