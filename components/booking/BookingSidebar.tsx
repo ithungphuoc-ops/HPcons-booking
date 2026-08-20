@@ -60,20 +60,6 @@ function SidebarContent({ user, onNavigate }: { user: User | null; onNavigate?: 
         </button>
         <div className="flex items-center gap-1 [&_button]:h-8 [&_button]:w-8 [&_button]:text-[#9fb3aa] [&_button]:hover:bg-white/5 [&_button]:hover:text-white">
           <NotificationBell />
-          <a
-            href="https://quacuatoi.hpcore.vn"
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Quà của tôi"
-            aria-label="Quà của tôi"
-            className="relative flex h-8 w-8 items-center justify-center rounded-xl text-[#9fb3aa] hover:bg-white/5 hover:text-white"
-          >
-            <Gift size={16} />
-            {/* Số điểm tạm để 0 — chưa nối UrBox thật, xem hpcons-quacuatoi/openspec */}
-            <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold leading-none text-white">
-              0
-            </span>
-          </a>
           <Link
             href="/bookings/settings/notifications"
             onClick={onNavigate}
@@ -84,6 +70,21 @@ function SidebarContent({ user, onNavigate }: { user: User | null; onNavigate?: 
             <BellRing size={16} />
           </Link>
         </div>
+      </div>
+
+      {/* Quà của tôi — điểm thưởng, cùng cấp độ nổi bật với nút Đăng kí ngay */}
+      <div className="px-3 pb-3">
+        <a
+          href="https://quacuatoi.hpcore.vn"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Quà của tôi"
+          className="flex items-center justify-center gap-2 rounded bg-amber-400 py-2 text-[12px] font-medium text-[#04140d] hover:brightness-95"
+        >
+          <Gift size={14} strokeWidth={2.5} />
+          {/* Số điểm tạm để 0 — chưa nối UrBox thật, xem hpcons-quacuatoi/openspec */}
+          0 điểm
+        </a>
       </div>
 
       {/* Tìm kiếm */}
