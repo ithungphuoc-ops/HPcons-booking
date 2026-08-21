@@ -11,6 +11,7 @@ import { getFirebaseAuth } from '@/lib/firebase/client'
 import NotificationBell from '@/components/layout/NotificationBell'
 import AppLauncher from '@/components/layout/AppLauncher'
 import { groupIcon } from '@/components/booking/groupIcons'
+import GiftPopup from '@/components/booking/GiftPopup'
 import type { User } from '@/types'
 import HighlightMatch, { normalizeSearch } from '@/components/ui/HighlightMatch'
 
@@ -23,6 +24,7 @@ function SidebarContent({ user, onNavigate }: { user: User | null; onNavigate?: 
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [query, setQuery] = useState('')
   const [launcherOpen, setLauncherOpen] = useState(false)
+  const [giftOpen, setGiftOpen] = useState(false)
 
   useEffect(() => {
     fetch('/api/booking-resources')
@@ -72,19 +74,19 @@ function SidebarContent({ user, onNavigate }: { user: User | null; onNavigate?: 
         </div>
       </div>
 
-      {/* Quà của tôi — điểm thưởng, cùng cấp độ nổi bật với nút Đăng kí ngay */}
+      {/* Quà của tôi — điểm thưởng, cùng cấp độ nổi bật với nút Đăng kí ngay.
+          Mở popup khung điện thoại nhúng iframe thay vì mở tab mới. */}
       <div className="px-3 pb-3">
-        <a
-          href="https://quacuatoi.hpcore.vn"
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
+          onClick={() => setGiftOpen(true)}
           title="Quà của tôi"
-          className="flex items-center justify-center gap-2 rounded bg-amber-400 py-2 text-[12px] font-medium text-[#04140d] hover:brightness-95"
+          className="flex w-full items-center justify-center gap-2 rounded bg-amber-400 py-2 text-[12px] font-medium text-[#04140d] hover:brightness-95"
         >
           <Gift size={14} strokeWidth={2.5} />
           {/* Số điểm tạm để 0 — chưa nối UrBox thật, xem hpcons-quacuatoi/openspec */}
           0 điểm
-        </a>
+        </button>
       </div>
 
       {/* Tìm kiếm */}
@@ -180,6 +182,8 @@ function SidebarContent({ user, onNavigate }: { user: User | null; onNavigate?: 
           onLogout={handleLogout}
         />
       )}
+
+      {giftOpen && <GiftPopup onClose={() => setGiftOpen(false)} />}
     </div>
   )
 }
