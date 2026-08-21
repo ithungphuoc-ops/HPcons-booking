@@ -1,7 +1,9 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { unstable_cache } from "next/cache";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import type { FirestoreUser, Role } from "@/lib/firestore/types";
+import type { CachedUserWithId } from "@/lib/firestore/users";
 import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS } from "@/lib/session-constants";
 
 export { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS };
@@ -10,9 +12,28 @@ export interface Session {
   uid: string;
   email: string;
   // null nếu tài khoản Firebase Auth chưa có document users/{uid} tương ứng
-  // (chưa được HR/IT cấp quyền — xem app/api/auth/session/route.ts)
-  profile: (FirestoreUser & { id: string }) | null;
+  // (chưa được HR/IT cấp quyền — xem app/api/auth/session/route.ts). Dùng
+  // CachedUserWithId (createdAt: string) — xem getCachedProfile() dưới đây.
+  profile: CachedUserWithId | null;
 }
+
+/**
+ * Cache 30 giây (thêm 21/08/2026, sau sự cố hết hạn mức Firestore — Booking
+ * dùng THẲNG project hpcons-portal, không phải project riêng, nên góp phần
+ * trực tiếp vào đúng hạn mức bị hết): trước đây đọc SỐNG users/{uid} mỗi
+ * lần xác minh phiên (mọi F5/chuyển trang). Đánh đổi: đổi vai trò/quyền
+ * mất tới 30s mới có hiệu lực — chấp nhận được.
+ */
+const getCachedProfile = unstable_cache(
+  async (uid: string): Promise<CachedUserWithId | null> => {
+    const snap = await adminDb.collection("users").doc(uid).get();
+    if (!snap.exists) return null;
+    const data = snap.data() as FirestoreUser;
+    return { id: snap.id, ...data, createdAt: data.createdAt?.toDate?.().toISOString() ?? null };
+  },
+  ["booking-session-profile"],
+  { revalidate: 30 },
+);
 
 export async function getSession(): Promise<Session | null> {
   const cookieStore = await cookies();
@@ -21,8 +42,7 @@ export async function getSession(): Promise<Session | null> {
 
   try {
     const decoded = await adminAuth.verifySessionCookie(cookie, true);
-    const snap = await adminDb.collection("users").doc(decoded.uid).get();
-    const profile = snap.exists ? ({ id: snap.id, ...snap.data() } as FirestoreUser & { id: string }) : null;
+    const profile = await getCachedProfile(decoded.uid);
     return { uid: decoded.uid, email: decoded.email ?? "", profile };
   } catch {
     return null;

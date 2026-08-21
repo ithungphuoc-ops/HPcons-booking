@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { adminDb } from '@/lib/firebase/admin'
 import { requireSession } from '@/lib/session'
 import { listAllUsers, toUserJson } from '@/lib/firestore/users'
+import { listAllDepartments } from '@/lib/firestore/departments'
 
 // Bản chỉ-đọc (GET) của app/api/members/route.ts (hpcons-portal) — Booking
 // chỉ cần danh sách nhân viên để chọn người theo dõi/quản lý/@mention, không
@@ -14,15 +14,15 @@ export async function GET() {
   const session = await requireSession().catch(() => null)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const [users, deptSnap] = await Promise.all([
+  const [users, departments] = await Promise.all([
     listAllUsers(),
-    adminDb.collection('departments').get(),
+    listAllDepartments(),
   ])
   const deptName = new Map<string, string>()
   const deptLeader = new Map<string, string | null>()
-  deptSnap.forEach((d) => {
-    deptName.set(d.id, (d.data().name as string) ?? '')
-    deptLeader.set(d.id, (d.data().leaderId as string) ?? null)
+  departments.forEach((d) => {
+    deptName.set(d.id, d.name)
+    deptLeader.set(d.id, d.leaderId)
   })
   const nameByUid = new Map<string, string>()
   users.forEach((u) => nameByUid.set(u.id, u.fullName))

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { Timestamp } from 'firebase-admin/firestore'
 import { requireSession, isAdmin } from '@/lib/session'
-import { adminDb } from '@/lib/firebase/admin'
 import { listAllUsers } from '@/lib/firestore/users'
+import { listAllDepartments } from '@/lib/firestore/departments'
 import { listBookingPurposes, buildValidatedFormData, BookingFormValidationError } from '@/lib/firestore/bookingPurposes'
 import {
   listBookingResources,
@@ -26,14 +26,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const booking = await getBookingById(id)
   if (!booking) return NextResponse.json({ error: 'Không tìm thấy' }, { status: 404 })
 
-  const [resources, users, purposes, deptSnap] = await Promise.all([
+  const [resources, users, purposes, departments] = await Promise.all([
     listBookingResources(true),
     listAllUsers(),
     listBookingPurposes(true),
-    adminDb.collection('departments').get(),
+    listAllDepartments(),
   ])
   const deptName = new Map<string, string>()
-  deptSnap.forEach((d) => deptName.set(d.id, (d.data().name as string) ?? ''))
+  departments.forEach((d) => deptName.set(d.id, d.name))
   const userMap = new Map(users.map((u) => [
     u.id,
     { full_name: u.fullName, email: u.email, title: u.title, department: u.departmentId ? deptName.get(u.departmentId) ?? null : null },

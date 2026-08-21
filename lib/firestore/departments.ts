@@ -1,6 +1,38 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { adminDb } from "@/lib/firebase/admin";
 import { getUserById } from "./users";
+
+export interface DepartmentWithId {
+  id: string;
+  name: string;
+  leaderId: string | null;
+  isHrDepartment: boolean;
+}
+
+/**
+ * Toàn bộ phòng ban — cache 5 phút (thêm 21/08/2026, sau sự cố hết hạn mức
+ * Firestore): trước đây 4 nơi (`/api/members`, `/api/units`, `/api/bookings`,
+ * `/api/bookings/[id]`) đều tự đọc sống collection này mỗi lần gọi, dù danh
+ * sách phòng ban gần như không đổi trong ngày — cache dài hơn user profile
+ * (5 phút so với 30-60s) vì đây là dữ liệu tổ chức, thay đổi hiếm hơn nhiều.
+ */
+export const listAllDepartments = unstable_cache(
+  async (): Promise<DepartmentWithId[]> => {
+    const snap = await adminDb.collection("departments").get();
+    return snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        name: (data.name as string) ?? "",
+        leaderId: (data.leaderId as string | undefined) ?? null,
+        isHrDepartment: (data.isHrDepartment as boolean) ?? false,
+      };
+    });
+  },
+  ["booking-departments"],
+  { revalidate: 300 },
+);
 
 /**
  * "Quản lý trực tiếp" của 1 nhân viên = Trưởng đơn vị (leaderId) của phòng ban

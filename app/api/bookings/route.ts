@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { Timestamp } from 'firebase-admin/firestore'
 import { requireSession, isAdmin } from '@/lib/session'
-import { adminDb } from '@/lib/firebase/admin'
 import { listAllUsers } from '@/lib/firestore/users'
 import { listBookingPurposes, buildValidatedFormData, BookingFormValidationError } from '@/lib/firestore/bookingPurposes'
 import {
@@ -14,7 +13,7 @@ import {
   BookingConflictError,
   BookingWindowError,
 } from '@/lib/firestore/bookings'
-import { isAnyDepartmentLeader } from '@/lib/firestore/departments'
+import { isAnyDepartmentLeader, listAllDepartments } from '@/lib/firestore/departments'
 
 export async function GET(req: Request) {
   const session = await requireSession().catch(() => null)
@@ -36,12 +35,12 @@ export async function GET(req: Request) {
 
   // isAnyDepartmentLeader gộp vào CÙNG Promise.all (trước đây await riêng SAU khối này — 1 vòng
   // round-trip Firestore tuần tự không cần thiết, xem điều tra "F5 chậm" 30/07/2026).
-  const [resources, bookings, users, purposes, deptSnap, canApproveSomething] = await Promise.all([
+  const [resources, bookings, users, purposes, departments, canApproveSomething] = await Promise.all([
     listBookingResources(),
     bookingsPromise,
     listAllUsers(),
     listBookingPurposes(true),
-    adminDb.collection('departments').get(),
+    listAllDepartments(),
     isAdmin(session) ? Promise.resolve(true) : isAnyDepartmentLeader(session.uid),
   ])
 
@@ -49,7 +48,7 @@ export async function GET(req: Request) {
   // 2 phòng ban đặt trùng giờ mà không biết ai đã giữ chỗ trước. Cùng cách
   // làm với /api/members (join qua departmentId, không thêm collection mới).
   const deptName = new Map<string, string>()
-  deptSnap.forEach((d) => deptName.set(d.id, (d.data().name as string) ?? ''))
+  departments.forEach((d) => deptName.set(d.id, d.name))
   const userMap = new Map(users.map((u) => [
     u.id,
     { full_name: u.fullName, email: u.email, title: u.title, department: u.departmentId ? deptName.get(u.departmentId) ?? null : null },

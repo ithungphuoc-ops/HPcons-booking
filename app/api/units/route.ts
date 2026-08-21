@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { adminDb } from '@/lib/firebase/admin'
 import { listAllUsers } from '@/lib/firestore/users'
+import { listAllDepartments } from '@/lib/firestore/departments'
 import { requireSession } from '@/lib/session'
 
 // Danh sách đơn vị (dùng lại collection departments) kèm thành viên + trưởng đơn vị
@@ -8,10 +8,11 @@ export async function GET() {
   const session = await requireSession().catch(() => null)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const [deptSnap, users] = await Promise.all([
-    adminDb.collection('departments').orderBy('name').get(),
+  const [departments, users] = await Promise.all([
+    listAllDepartments(),
     listAllUsers(),
   ])
+  const sortedDepartments = [...departments].sort((a, b) => a.name.localeCompare(b.name, 'vi'))
 
   const byDept = new Map<string, typeof users>()
   const unassigned: typeof users = []
@@ -30,16 +31,15 @@ export async function GET() {
     role: u.role, employment_status: u.employmentStatus ?? 'active',
   })
 
-  const units = deptSnap.docs.map((d) => {
-    const data = d.data()
+  const units = sortedDepartments.map((d) => {
     const members = (byDept.get(d.id) ?? []).sort((a, b) => a.fullName.localeCompare(b.fullName, 'vi'))
-    const leader = data.leaderId ? users.find((u) => u.id === data.leaderId) : null
+    const leader = d.leaderId ? users.find((u) => u.id === d.leaderId) : null
     return {
       id: d.id,
-      name: (data.name as string) ?? '',
-      leader_id: (data.leaderId as string) ?? null,
+      name: d.name,
+      leader_id: d.leaderId,
       leader_name: leader ? leader.fullName : null,
-      is_hr_department: (data.isHrDepartment as boolean) ?? false,
+      is_hr_department: d.isHrDepartment,
       member_count: members.length,
       members: members.map(member),
     }
