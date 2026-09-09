@@ -28,6 +28,10 @@ export async function GET() {
   const snap = await query.get()
   const groups = snap.docs
     .map((d) => ({ id: d.id, ...(d.data() as MemberGroup) }))
-    .sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())
+    // Optional chaining + fallback 0: tránh crash cả API nếu lỡ có doc cũ/lỗi
+    // thiếu field createdAt — trước đây orderBy('createdAt') của Firestore tự
+    // lặng lẽ bỏ qua doc thiếu field đó, còn sort JS này lấy về TOÀN BỘ doc
+    // khớp where nên phải tự chống lỗi, đúng như bản gốc hpcons-portal đang làm.
+    .sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0))
   return NextResponse.json({ groups })
 }
