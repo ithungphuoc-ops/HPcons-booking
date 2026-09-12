@@ -1,5 +1,5 @@
 import {
-  Clock, MapPin, Settings, BarChart3, FileCheck, CalendarClock, Send,
+  Clock, MapPin, Settings, BarChart3, FileCheck, CalendarClock,
   Warehouse, Briefcase, Receipt, Workflow as WorkflowIcon, Heart, Laptop, PenTool, ClipboardCheck, Package, type LucideIcon,
 } from 'lucide-react'
 import type { Role } from '@/types'
@@ -61,16 +61,6 @@ export const DASHBOARD_APPS: DashboardApp[] = [
     href: `${ACCOUNT_BASE}/dashboard/requests`,
     roles: ['admin', 'manager', 'employee'] as Role[],
     image: `${ACCOUNT_BASE}/landing-icons-3d/hpc-request.png`,
-  },
-  {
-    name: 'Nhóm Telegram',
-    description: 'Đăng ký & phê duyệt nhóm',
-    icon: Send, iconKey: 'Send',
-    color: 'bg-sky-500',
-    category: 'ops',
-    href: `${ACCOUNT_BASE}/dashboard/telegram-groups`,
-    roles: ['admin', 'manager', 'employee'] as Role[],
-    image: `${ACCOUNT_BASE}/landing-icons-3d/telegram.png`,
   },
   {
     name: 'Booking',

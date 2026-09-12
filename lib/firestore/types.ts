@@ -92,7 +92,7 @@ export interface MemberGroup {
 /**
  * Nhật ký hoạt động quản trị — collection "activity_logs" (13/07/2026).
  * Phạm vi đợt 1: đổi vai trò nhân viên + đổi quyền ứng dụng con. Mở rộng dần
- * ở các đợt sau (duyệt đơn/booking/nhóm Telegram, đổi trưởng đơn vị...).
+ * ở các đợt sau (duyệt đơn/booking, đổi trưởng đơn vị...).
  * `action`/`entityType` là CHUỖI TỰ DO (không enum) — tránh phải sửa type mỗi
  * khi thêm loại hành động mới; đây là dữ liệu chỉ-đọc/hiển thị.
  */
@@ -383,39 +383,3 @@ export interface FirestoreRequest {
   createdAt: Timestamp;
 }
 
-export interface TelegramGroupMember {
-  user_id: string;
-  full_name: string;
-}
-
-export interface TelegramGroupResponsibility {
-  user_id: string;
-  full_name: string;
-  resp: string;
-  role: "Owner" | "Admin" | "Thành viên";
-}
-
-export type TelegramGroupFrequency = "daily" | "weekly" | "adhoc";
-export type TelegramGroupStatus = "pending" | "approved" | "rejected";
-
-export interface FirestoreTelegramGroupRequest {
-  userId: string;
-  groupName: string;
-  purpose: string;
-  regTitle: string;
-  regDepartment: string;
-  regProject: string | null;
-  ownerId: string;
-  members: TelegramGroupMember[];
-  multiDept: boolean;
-  hasOutsiders: boolean;
-  outsiderDetail: string | null;
-  deptGroup: boolean;
-  responsibilities: TelegramGroupResponsibility[];
-  frequency: TelegramGroupFrequency;
-  status: TelegramGroupStatus;
-  reviewerId: string | null;
-  reviewNote: string | null;
-  reviewedAt: Timestamp | null;
-  createdAt: Timestamp;
-}
