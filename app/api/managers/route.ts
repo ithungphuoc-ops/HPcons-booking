@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
-import { adminDb } from '@/lib/firebase/admin'
 import { requireSession } from '@/lib/session'
-import type { MemberGroup } from '@/lib/firestore/types'
+import { layToanBoMemberGroupsDaCache } from '@/lib/firestore/memberGroupsCache'
 
 /**
  * Quản lý trực tiếp — nguồn dữ liệu là managerId của "Nhóm thành viên" (collection
@@ -22,12 +21,11 @@ export async function GET() {
     return NextResponse.json({ error: (e as Error).message }, { status: 401 })
   }
 
-  const snap = await adminDb.collection('memberGroups').get()
+  const groups = await layToanBoMemberGroupsDaCache()
   const managerIds = new Set<string>()
   const candidates: { name: string; managerId: string }[] = []
 
-  snap.forEach((doc) => {
-    const data = doc.data() as MemberGroup
+  groups.forEach((data) => {
     if (!data.managerId) return
     managerIds.add(data.managerId)
     if (Array.isArray(data.memberIds) && data.memberIds.includes(session.uid)) {

@@ -1,5 +1,6 @@
 import "server-only";
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { adminDb } from "@/lib/firebase/admin";
 import { getDirectManagerId, getHrDepartmentLeaderId } from "./departments";
 import { getUserById } from "./users";
@@ -16,6 +17,12 @@ import type {
 const GROUPS = "bookingGroups";
 const RESOURCES = "bookingResources";
 const BOOKINGS = "bookings";
+// ⚠️ Xem quy ước hạn mức Firestore đầy đủ ở countBookingUsageByPurpose() (lib/firestore/
+// bookingPurposes.ts) — cache 60s cho GROUPS/RESOURCES (collection nhỏ, do admin quản lý, chạy
+// trên trang lịch chính mỗi F5/đổi view). Có 2 hàm ghi/collection (create + update) — cả 2 đều
+// revalidateTag() ngay khi ghi.
+const TAG_BOOKING_GROUPS = "booking-groups";
+const TAG_BOOKING_RESOURCES = "booking-resources";
 
 // Số giờ (thực tế trôi qua, không phải giờ hành chính) 1 cấp duyệt được phép
 // "pending" trước khi bị nhắc lại (Lớp 2) — xem app/api/bookings/reminders/route.ts.
@@ -33,12 +40,20 @@ export interface BookingWithId extends FirestoreBooking {
 
 // ───────────────────────── Nhóm tài nguyên ─────────────────────────
 
+const layBookingGroupsDaCache = unstable_cache(
+  async (): Promise<BookingGroupWithId[]> => {
+    // Lọc isActive ở code thay vì .where(...) kèm .orderBy(field khác) — tránh
+    // phải tạo composite index riêng cho isActive + sortOrder (đã gặp lỗi này
+    // trên production: FAILED_PRECONDITION thiếu index, làm sập cả trang Booking).
+    const snap = await adminDb.collection(GROUPS).orderBy("sortOrder").get();
+    return snap.docs.map((d) => ({ id: d.id, ...(d.data() as FirestoreBookingGroup) }));
+  },
+  ["booking-groups-list"],
+  { revalidate: 60, tags: [TAG_BOOKING_GROUPS] },
+);
+
 export async function listBookingGroups(includeInactive = false): Promise<BookingGroupWithId[]> {
-  // Lọc isActive ở code thay vì .where(...) kèm .orderBy(field khác) — tránh
-  // phải tạo composite index riêng cho isActive + sortOrder (đã gặp lỗi này
-  // trên production: FAILED_PRECONDITION thiếu index, làm sập cả trang Booking).
-  const snap = await adminDb.collection(GROUPS).orderBy("sortOrder").get();
-  const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as FirestoreBookingGroup) }));
+  const rows = await layBookingGroupsDaCache();
   return includeInactive ? rows : rows.filter((r) => r.isActive);
 }
 
@@ -56,19 +71,29 @@ export async function createBookingGroup(data: {
 }): Promise<BookingGroupWithId> {
   const doc: FirestoreBookingGroup = { ...data, isActive: true, createdAt: Timestamp.now() };
   const ref = await adminDb.collection(GROUPS).add(doc);
+  revalidateTag(TAG_BOOKING_GROUPS);
   return { id: ref.id, ...doc };
 }
 
 export async function updateBookingGroup(id: string, patch: Partial<FirestoreBookingGroup>): Promise<void> {
   await adminDb.collection(GROUPS).doc(id).update(patch);
+  revalidateTag(TAG_BOOKING_GROUPS);
 }
 
 // ───────────────────────── Tài nguyên ─────────────────────────
 
+const layBookingResourcesDaCache = unstable_cache(
+  async (): Promise<BookingResourceWithId[]> => {
+    // Cùng lý do lọc ở code như listBookingGroups ở trên.
+    const snap = await adminDb.collection(RESOURCES).orderBy("sortOrder").get();
+    return snap.docs.map((d) => ({ id: d.id, ...(d.data() as FirestoreBookingResource) }));
+  },
+  ["booking-resources-list"],
+  { revalidate: 60, tags: [TAG_BOOKING_RESOURCES] },
+);
+
 export async function listBookingResources(includeInactive = false): Promise<BookingResourceWithId[]> {
-  // Cùng lý do lọc ở code như listBookingGroups ở trên.
-  const snap = await adminDb.collection(RESOURCES).orderBy("sortOrder").get();
-  const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as FirestoreBookingResource) }));
+  const rows = await layBookingResourcesDaCache();
   return includeInactive ? rows : rows.filter((r) => r.isActive);
 }
 
@@ -94,6 +119,7 @@ export async function createBookingResource(data: {
 }): Promise<BookingResourceWithId> {
   const doc: FirestoreBookingResource = { ...data, isActive: true, createdAt: Timestamp.now() };
   const ref = await adminDb.collection(RESOURCES).add(doc);
+  revalidateTag(TAG_BOOKING_RESOURCES);
   return { id: ref.id, ...doc };
 }
 
@@ -107,6 +133,7 @@ export async function updateBookingResource(
   },
 ): Promise<void> {
   await adminDb.collection(RESOURCES).doc(id).update(patch);
+  revalidateTag(TAG_BOOKING_RESOURCES);
 }
 
 // ───────────────────────── Booking ─────────────────────────
