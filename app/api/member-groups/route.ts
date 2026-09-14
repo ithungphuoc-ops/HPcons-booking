@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase/admin'
 import { requireSession, isAdmin } from '@/lib/session'
+import { layToanBoMemberGroupsDaCache } from '@/lib/firestore/memberGroupsCache'
 import type { MemberGroup } from '@/lib/firestore/types'
 
 // Bản chỉ-đọc (GET) của app/api/member-groups/route.ts (hpcons-portal) —
@@ -21,17 +22,22 @@ export async function GET() {
   // Firestore phải có chỉ mục kép (managerId + createdAt) chưa từng tạo, gây
   // lỗi "FAILED_PRECONDITION: The query requires an index." mỗi lần người
   // không phải Admin gọi route này.
-  let query: FirebaseFirestore.Query = adminDb.collection('memberGroups')
-  if (!isAdmin(session)) {
-    query = query.where('managerId', '==', session.uid)
+  // Admin xem hết → dùng bản đã cache 60s (xem lib/firestore/memberGroupsCache.ts, cùng quy ước
+  // hạn mức Firestore ghi ở lib/firestore/bookingPurposes.ts). Không phải admin → phạm vi đã hẹp
+  // sẵn (đúng 1 người = quản lý của họ), đọc sống bình thường, không cần cache.
+  let groups: (MemberGroup & { id: string })[]
+  if (isAdmin(session)) {
+    groups = await layToanBoMemberGroupsDaCache()
+  } else {
+    const snap = await adminDb.collection('memberGroups').where('managerId', '==', session.uid).get()
+    groups = snap.docs.map((d) => ({ id: d.id, ...(d.data() as MemberGroup) }))
   }
-  const snap = await query.get()
-  const groups = snap.docs
-    .map((d) => ({ id: d.id, ...(d.data() as MemberGroup) }))
+  groups = [...groups].sort(
     // Optional chaining + fallback 0: tránh crash cả API nếu lỡ có doc cũ/lỗi
     // thiếu field createdAt — trước đây orderBy('createdAt') của Firestore tự
     // lặng lẽ bỏ qua doc thiếu field đó, còn sort JS này lấy về TOÀN BỘ doc
     // khớp where nên phải tự chống lỗi, đúng như bản gốc hpcons-portal đang làm.
-    .sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0))
+    (a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0),
+  )
   return NextResponse.json({ groups })
 }
