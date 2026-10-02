@@ -81,6 +81,10 @@ function BookingsPageInner() {
   const [viewMonth, setViewMonth] = useState(() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1) })
   const [anchorDate, setAnchorDate] = useState(() => new Date())
   const [pickerDate, setPickerDate] = useState<string | null>(null)
+  // pickerSlot = khung giờ chính xác bấm trong lưới giờ Tuần/Ngày (change
+  // booking-week-day-timegrid, 02/10/2026); null khi đến từ Tháng (giữ mặc
+  // định 08:00–09:00 như cũ, xem handleResourcePicked).
+  const [pickerSlot, setPickerSlot] = useState<{ start: string; end: string } | null>(null)
   const [quickPrefill, setQuickPrefill] = useState<{ resourceId: string; slot: { start: string; end: string } } | null>(null)
 
   const load = useCallback(async () => {
@@ -179,8 +183,9 @@ function BookingsPageInner() {
 
   function handleResourcePicked(resourceId: string) {
     if (!pickerDate) return
-    setQuickPrefill({ resourceId, slot: { start: `${pickerDate}T08:00`, end: `${pickerDate}T09:00` } })
+    setQuickPrefill({ resourceId, slot: pickerSlot ?? { start: `${pickerDate}T08:00`, end: `${pickerDate}T09:00` } })
     setPickerDate(null)
+    setPickerSlot(null)
     setShowForm(true)
   }
 
@@ -268,21 +273,21 @@ function BookingsPageInner() {
         <MonthCalendar
           month={viewMonth}
           bookings={shown}
-          onDayClick={(dateStr) => setPickerDate(dateStr)}
+          onDayClick={(dateStr) => { setPickerSlot(null); setPickerDate(dateStr) }}
           onBookingClick={setSelectedBookingId}
         />
       ) : viewMode === 'week' ? (
         <WeekCalendar
           weekStart={getWeekStart(anchorDate)}
           bookings={shown}
-          onDayClick={(dateStr) => setPickerDate(dateStr)}
+          onSlotClick={(dateStr, slot) => { setPickerSlot(slot); setPickerDate(dateStr) }}
           onBookingClick={setSelectedBookingId}
         />
       ) : (
         <DayCalendar
           day={anchorDate}
           bookings={shown}
-          onAddClick={() => setPickerDate(anchorDate.toISOString().slice(0, 10))}
+          onSlotClick={(dateStr, slot) => { setPickerSlot(slot); setPickerDate(dateStr) }}
           onBookingClick={setSelectedBookingId}
         />
       )}
@@ -330,7 +335,7 @@ function BookingsPageInner() {
         <QuickBookModal
           groups={groups}
           dateStr={pickerDate}
-          onClose={() => setPickerDate(null)}
+          onClose={() => { setPickerDate(null); setPickerSlot(null) }}
           onPicked={handleResourcePicked}
         />
       )}
