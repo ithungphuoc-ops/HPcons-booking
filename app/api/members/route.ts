@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireSession } from '@/lib/session'
 import { listAllUsers, toUserJson } from '@/lib/firestore/users'
 import { listAllDepartments } from '@/lib/firestore/departments'
+import { resolveDirectManagerIdThuan } from '@/lib/quanLyTrucTiep'
 
 // Bản chỉ-đọc (GET) của app/api/members/route.ts (hpcons-portal) — Booking
 // chỉ cần danh sách nhân viên để chọn người theo dõi/quản lý/@mention, không
@@ -19,23 +20,28 @@ export async function GET() {
     listAllDepartments(),
   ])
   const deptName = new Map<string, string>()
-  const deptLeader = new Map<string, string | null>()
-  departments.forEach((d) => {
-    deptName.set(d.id, d.name)
-    deptLeader.set(d.id, d.leaderId)
-  })
+  const deptById = new Map(departments.map((d) => [d.id, d]))
+  departments.forEach((d) => deptName.set(d.id, d.name))
   const nameByUid = new Map<string, string>()
   users.forEach((u) => nameByUid.set(u.id, u.fullName))
 
-  return NextResponse.json(
-    users.map((u) => {
-      const leaderId = u.departmentId ? deptLeader.get(u.departmentId) : null
-      const manager_name = leaderId && leaderId !== u.id ? nameByUid.get(leaderId) ?? null : null
+  // manager_name theo luật "Quản lý trực tiếp" chung (03/10/2026, lib/quanLyTrucTiep.ts):
+  // directManagerIds → trưởng đơn vị chính → trưởng nhóm cha. Tra cứu hoàn toàn trong bộ nhớ
+  // (users + departments đã cache), không thêm lượt đọc Firestore.
+  const rows = await Promise.all(
+    users.map(async (u) => {
+      const managerId = await resolveDirectManagerIdThuan(
+        u.id,
+        u,
+        (id) => nameByUid.has(id),
+        (id) => deptById.get(id),
+      )
       return {
         ...toUserJson(u),
         department: u.departmentId ? deptName.get(u.departmentId) ?? null : null,
-        manager_name,
+        manager_name: managerId ? nameByUid.get(managerId) ?? null : null,
       }
     }),
   )
+  return NextResponse.json(rows)
 }

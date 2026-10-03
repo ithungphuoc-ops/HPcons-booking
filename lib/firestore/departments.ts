@@ -2,11 +2,13 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 import { adminDb } from "@/lib/firebase/admin";
 import { getUserById } from "./users";
+import { resolveDirectManagerIdThuan } from "@/lib/quanLyTrucTiep";
 
 export interface DepartmentWithId {
   id: string;
   name: string;
   leaderId: string | null;
+  parentId: string | null;
   isHrDepartment: boolean;
 }
 
@@ -26,31 +28,43 @@ export const listAllDepartments = unstable_cache(
         id: d.id,
         name: (data.name as string) ?? "",
         leaderId: (data.leaderId as string | undefined) ?? null,
+        parentId: (data.parentId as string | undefined) ?? null,
         isHrDepartment: (data.isHrDepartment as boolean) ?? false,
       };
     });
   },
-  ["booking-departments"],
+  ["booking-departments-v2"], // v2: có thêm parentId — khoá mới để không đọc bản cache cũ thiếu trường
   { revalidate: 300 },
 );
 
 /**
- * "Quản lý trực tiếp" của 1 nhân viên = Trưởng đơn vị (leaderId) của phòng ban
- * họ thuộc về. Trả null nếu không thuộc phòng ban nào, phòng ban chưa gán
- * trưởng, hoặc chính họ đã là trưởng đơn vị của mình (không có ai ở trên).
- * Dùng chung cho trang Tài khoản (app/api/profile/route.ts) và Booking
- * (lib/firestore/bookings.ts).
+ * "Quản lý trực tiếp" của 1 nhân viên — theo hợp đồng dữ liệu chung
+ * 03/10/2026 (luật nằm ở lib/quanLyTrucTiep.ts): directManagerIds (theo thứ
+ * tự, bỏ chính mình/uid không tồn tại) → trưởng đơn vị chính → trưởng nhóm
+ * cha (tối đa 10 bước) → null. Đọc SỐNG Firestore (không cache) như bản cũ —
+ * kết quả quyết định người duyệt booking nên phải mới nhất. Trường hợp phổ
+ * biến (không directManagerIds, đơn vị có trưởng) vẫn đúng 2 lượt đọc như cũ.
  */
-export async function getDirectManagerId(userId: string): Promise<string | null> {
-  const user = await getUserById(userId);
-  if (!user?.departmentId) return null;
-
-  const dept = await adminDb.collection("departments").doc(user.departmentId).get();
-  if (!dept.exists) return null;
-
-  const leaderId = dept.data()?.leaderId as string | undefined;
-  if (!leaderId || leaderId === userId) return null;
-  return leaderId;
+export async function getDirectManagerId(
+  userId: string,
+  // Hồ sơ người dùng đã đọc sẵn (vd /api/managers) — tránh đọc users/{uid} 2 lần.
+  preloadedUser?: Awaited<ReturnType<typeof getUserById>>,
+): Promise<string | null> {
+  const user = preloadedUser !== undefined ? preloadedUser : await getUserById(userId);
+  return resolveDirectManagerIdThuan(
+    userId,
+    user,
+    async (id) => (await adminDb.collection("users").doc(id).get()).exists,
+    async (deptId) => {
+      const snap = await adminDb.collection("departments").doc(deptId).get();
+      if (!snap.exists) return null;
+      const data = snap.data() ?? {};
+      return {
+        leaderId: (data.leaderId as string | undefined) ?? null,
+        parentId: (data.parentId as string | undefined) ?? null,
+      };
+    },
+  );
 }
 
 /**
@@ -67,12 +81,17 @@ export async function getHrDepartmentLeaderId(): Promise<string | null> {
 }
 
 /**
- * true nếu userId là trưởng đơn vị của ÍT NHẤT 1 phòng ban (quản lý trực
- * tiếp của ai đó) hoặc là quản lý nhân sự. Dùng để quyết định có hiện tab
- * "Chờ duyệt" ở Booking hay không (thay cho check `resource.approverIds`
- * cũ — không còn dùng để xác định người duyệt, xem lib/firestore/bookings.ts).
+ * true nếu userId là "quản lý" của ít nhất 1 người — theo hợp đồng
+ * 03/10/2026: là trưởng đơn vị (leaderId) của ≥1 phòng ban HOẶC có user nào
+ * khai userId trong directManagerIds. Dùng để quyết định có hiện tab
+ * "Chờ duyệt" ở Booking hay không.
+ * Truy vấn `array-contains` trên 1 trường dùng index đơn trường Firestore tự
+ * tạo — KHÔNG cần thêm composite index vào firestore.indexes.json.
  */
 export async function isAnyDepartmentLeader(userId: string): Promise<boolean> {
-  const snap = await adminDb.collection("departments").where("leaderId", "==", userId).limit(1).get();
-  return !snap.empty;
+  const [leaderSnap, directSnap] = await Promise.all([
+    adminDb.collection("departments").where("leaderId", "==", userId).limit(1).get(),
+    adminDb.collection("users").where("directManagerIds", "array-contains", userId).limit(1).get(),
+  ]);
+  return !leaderSnap.empty || !directSnap.empty;
 }
