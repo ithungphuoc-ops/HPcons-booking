@@ -41,6 +41,12 @@ export interface FirestoreUser {
   // Cài đặt cá nhân trang Tài khoản (17/07/2026) — map JSON tự do, field thiếu
   // = dùng giá trị mặc định phía client (xem lib/profile-mock-data.ts).
   settings?: FirestoreUserSettings | null;
+  // Hợp đồng "Quản lý trực tiếp" (03/10/2026, ghi ở App Tổng): uid quản lý
+  // trực tiếp CÓ THỨ TỰ, tối đa 3, phần tử [0] = người duyệt cấp 1. Thiếu =
+  // dùng trưởng đơn vị (xem lib/quanLyTrucTiep.ts).
+  directManagerIds?: string[];
+  // Nhóm kiêm nhiệm — chỉ để thuộc nhóm/hiển thị, KHÔNG đổi người duyệt.
+  secondaryDepartmentIds?: string[];
 }
 
 export interface FirestoreUserSettings {
@@ -148,8 +154,12 @@ export interface FirestoreDepartment {
   name: string;
   description: string | null;
   createdAt: Timestamp;
-  // Trưởng đơn vị (uid). "Quản lý trực tiếp" của thành viên = trưởng đơn vị này.
+  // Trưởng đơn vị (uid). Là "Quản lý trực tiếp" dự phòng khi thành viên
+  // chưa có directManagerIds (xem lib/quanLyTrucTiep.ts).
   leaderId?: string | null;
+  // Nhóm cha (03/10/2026) — đơn vị chưa có trưởng / người đó chính là trưởng
+  // thì đi lên trưởng nhóm cha. Thiếu = không có cha.
+  parentId?: string | null;
   // Đánh dấu ĐÚNG 1 phòng ban là "Nhân sự" (17/07/2026) — leaderId của phòng
   // này = "quản lý nhân sự", dùng làm cấp duyệt thứ 2 cho Booking (xem
   // lib/firestore/bookings.ts). Nếu nhiều phòng cùng đánh dấu, chỉ lấy 1

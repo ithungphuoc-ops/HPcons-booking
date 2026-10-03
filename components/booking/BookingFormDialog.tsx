@@ -95,10 +95,13 @@ export default function BookingFormDialog({
   const [followerInput, setFollowerInput] = useState('')
   const [followers, setFollowers] = useState<MemberOption[]>([])
   const [managerId, setManagerId] = useState('')
-  // Quản lý trực tiếp — cùng UX với quatang/base-request-app: tự gợi ý theo Nhóm thành viên, có
-  // thể bấm "Đổi" để gõ @ tìm BẤT KỲ ai trong toàn công ty (không chỉ người đang là managerId của
-  // 1 nhóm nào) — xem app/api/managers/route.ts.
+  // Quản lý trực tiếp — từ 03/10/2026 gợi ý MẶC ĐỊNH = Quản lý trực tiếp đã resolve theo hợp
+  // đồng dữ liệu chung (directManagerIds → trưởng đơn vị → trưởng nhóm cha), cùng luật server
+  // dùng để tính người duyệt cấp 1. Vẫn bấm "Đổi" để gõ @ tìm BẤT KỲ ai trong toàn công ty
+  // (gửi lên manager_override_id) — xem app/api/managers/route.ts.
   const [managerIds, setManagerIds] = useState<string[]>([])
+  const [resolvedManagerId, setResolvedManagerId] = useState<string | null>(null)
+  const [directManagerIds, setDirectManagerIds] = useState<string[]>([])
   const [managerEditing, setManagerEditing] = useState(false)
   const [managerQuery, setManagerQuery] = useState('')
   const [attachments, setAttachments] = useState<{ name: string; url: string }[]>([])
@@ -126,20 +129,30 @@ export default function BookingFormDialog({
       .finally(() => setLoadingBusy(false))
   }, [showBusy, resourceId, startDate])
 
-  // Gợi ý sẵn quản lý trực tiếp thật (theo Nhóm thành viên) + danh sách quản lý để duyệt nhanh khi
-  // chưa gõ tìm gì (xem app/api/managers/route.ts).
+  // Gợi ý sẵn Quản lý trực tiếp đã resolve + danh sách quản lý để duyệt nhanh khi chưa gõ tìm gì
+  // (quản lý trực tiếp đã khai đứng đầu — xem app/api/managers/route.ts).
   useEffect(() => {
     if (isEditing) return
     fetch('/api/managers').then((r) => r.json()).then((data) => {
-      if (data?.defaultManagerId) setManagerId(data.defaultManagerId)
+      if (data?.defaultManagerId) {
+        setManagerId(data.defaultManagerId)
+        setResolvedManagerId(data.defaultManagerId)
+      }
+      setDirectManagerIds(Array.isArray(data?.directManagerIds) ? data.directManagerIds : [])
       setManagerIds(data?.managerIds ?? [])
     }).catch(() => {})
   }, [isEditing])
 
-  const managerOptions = useMemo(
-    () => members.filter((m) => managerIds.includes(m.id)),
-    [members, managerIds],
-  )
+  // Giữ đúng THỨ TỰ: quản lý trực tiếp đã khai → người được resolve (vd trưởng đơn vị) → các
+  // quản lý nhóm thành viên còn lại.
+  const managerOptions = useMemo(() => {
+    const order = [...directManagerIds]
+    if (resolvedManagerId && !order.includes(resolvedManagerId)) order.push(resolvedManagerId)
+    managerIds.forEach((id) => { if (!order.includes(id)) order.push(id) })
+    const byId = new Map(members.map((m) => [m.id, m]))
+    return order.map((id) => byId.get(id)).filter((m): m is MemberOption => !!m)
+  }, [members, managerIds, directManagerIds, resolvedManagerId])
+  const isDirectManager = (id: string) => id === resolvedManagerId || directManagerIds.includes(id)
   const selectedManager = members.find((m) => m.id === managerId) ?? null
   const managerMatches = useMemo(() => {
     const q = normalizeSearch(managerQuery.trim()).replace(/^@/, '')
@@ -372,6 +385,9 @@ export default function BookingFormDialog({
                       {selectedManager.full_name}
                       {selectedManager.username && <span style={{ color: 'var(--hp-text-desc)' }}>@{selectedManager.username}</span>}
                     </span>
+                    {selectedManager.id === resolvedManagerId && (
+                      <span className="text-[11px] font-medium" style={{ color: 'var(--hp-text-desc)' }}>Quản lý trực tiếp</span>
+                    )}
                     <button type="button" onClick={() => { setManagerEditing(true); setManagerQuery('') }} className="text-xs font-medium" style={{ color: 'var(--hp-primary)' }}>
                       Đổi
                     </button>
@@ -399,7 +415,10 @@ export default function BookingFormDialog({
                             onClick={() => { setManagerId(m.id); setManagerEditing(false); setManagerQuery('') }}
                             className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-xs hover:opacity-80"
                           >
-                            <span className="font-semibold">{m.full_name}</span>
+                            <span className="font-semibold">
+                              {m.full_name}
+                              {isDirectManager(m.id) && <span className="ml-1.5 font-normal" style={{ color: 'var(--hp-primary)' }}>· Quản lý trực tiếp</span>}
+                            </span>
                             {m.username && <span style={{ color: 'var(--hp-text-desc)' }}>@{m.username}</span>}
                           </button>
                         ))}

@@ -1,17 +1,23 @@
 import { NextResponse } from 'next/server'
 import { requireSession } from '@/lib/session'
 import { layToanBoMemberGroupsDaCache } from '@/lib/firestore/memberGroupsCache'
+import { getDirectManagerId } from '@/lib/firestore/departments'
+import { getUserById } from '@/lib/firestore/users'
+import { docDirectManagerIds } from '@/lib/quanLyTrucTiep'
 
 /**
- * Quản lý trực tiếp — nguồn dữ liệu là managerId của "Nhóm thành viên" (collection
- * memberGroups, cùng project với hpcons-portal), ĐỒNG BỘ với cách quatang/base-request-app đang
- * làm (30/07/2026) — KHÔNG dùng department.leaderId như /api/members đang tính "manager_name"
- * (đó là field khác, không liên quan tới field này).
+ * Gợi ý "Quản lý trực tiếp" cho form đặt lịch (BookingFormDialog.tsx).
  *
- * defaultManagerId: nhóm ĐẦU TIÊN (theo tên) mà chính người gọi có mặt trong memberIds VÀ đã gán
- * managerId — chỉ là gợi ý, người dùng vẫn tự đổi được ở UI (xem BookingFormDialog.tsx).
- * managerIds: mọi uid hiện đang là managerId của ≥1 nhóm — dùng cho danh sách gợi ý duyệt nhanh khi
- * chưa gõ tìm gì (tên/username resolve ở client từ prop `members` đã có sẵn, không cần trả ở đây).
+ * Từ 03/10/2026 (hợp đồng dữ liệu chung "Quản lý trực tiếp"):
+ * - defaultManagerId = Quản lý trực tiếp đã resolve của NGƯỜI GỌI theo đúng luật server dùng
+ *   khi tạo booking (getDirectManagerId: directManagerIds → trưởng đơn vị chính → trưởng nhóm
+ *   cha). Trước đây lấy theo memberGroups.managerId — lệch với luật duyệt thật. Không resolve
+ *   được → null (form để trống, người dùng tự chọn; server khi đó cũng không có cấp 1).
+ * - directManagerIds = danh sách quản lý trực tiếp người gọi đã khai (theo thứ tự) — form đưa
+ *   lên ĐẦU danh sách chọn tay.
+ * - managerIds = nguồn cũ giữ nguyên: mọi uid đang là managerId của ≥1 "Nhóm thành viên"
+ *   (memberGroups) — danh sách gợi ý duyệt nhanh khi chưa gõ tìm gì.
+ * Người dùng vẫn đổi được sang bất kỳ ai (gửi lên dạng manager_override_id).
  */
 export async function GET() {
   let session
@@ -21,20 +27,21 @@ export async function GET() {
     return NextResponse.json({ error: (e as Error).message }, { status: 401 })
   }
 
-  const groups = await layToanBoMemberGroupsDaCache()
-  const managerIds = new Set<string>()
-  const candidates: { name: string; managerId: string }[] = []
+  const [groups, me] = await Promise.all([
+    layToanBoMemberGroupsDaCache(),
+    getUserById(session.uid),
+  ])
+  const defaultManagerId = await getDirectManagerId(session.uid, me)
+  const directManagerIds = docDirectManagerIds(me?.directManagerIds).filter((id) => id !== session.uid)
 
+  const managerIds = new Set<string>()
   groups.forEach((data) => {
-    if (!data.managerId) return
-    managerIds.add(data.managerId)
-    if (Array.isArray(data.memberIds) && data.memberIds.includes(session.uid)) {
-      candidates.push({ name: data.name ?? '', managerId: data.managerId })
-    }
+    if (data.managerId) managerIds.add(data.managerId)
   })
 
-  candidates.sort((a, b) => a.name.localeCompare(b.name, 'vi'))
-  const defaultManagerId = candidates[0]?.managerId ?? null
-
-  return NextResponse.json({ defaultManagerId, managerIds: Array.from(managerIds) })
+  return NextResponse.json({
+    defaultManagerId,
+    directManagerIds,
+    managerIds: [...directManagerIds, ...Array.from(managerIds).filter((id) => !directManagerIds.includes(id))],
+  })
 }
