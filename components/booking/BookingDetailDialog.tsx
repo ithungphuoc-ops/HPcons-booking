@@ -71,17 +71,15 @@ export default function BookingDetailDialog({
   const loadedAt = useMemo(() => new Date(), [])
 
   // Danh sách gợi ý @mention cho khung bình luận — người từ /api/members,
-  // nhóm/phòng ban từ /api/member-groups + /api/units (đều đã có sẵn).
+  // nhóm = phòng ban từ /api/units ("Nhóm thành viên" memberGroups đã bỏ hẳn 03/10/2026).
   useEffect(() => {
     Promise.all([
       fetch('/api/members').then((r) => r.json()).catch(() => []),
-      fetch('/api/member-groups').then((r) => r.json()).catch(() => ({ groups: [] })),
       fetch('/api/units').then((r) => r.json()).catch(() => ({ units: [] })),
-    ]).then(([members, mgRes, unitsRes]) => {
+    ]).then(([members, unitsRes]) => {
       setMentionPeople((Array.isArray(members) ? members : []).map((m: { id: string; full_name: string }) => ({ id: m.id, display: m.full_name })))
-      const groupOpts = (mgRes.groups ?? []).map((g: { id: string; name: string }) => ({ id: g.id, display: g.name }))
-      const unitOpts = (unitsRes.units ?? []).map((u: { id: string; name: string }) => ({ id: u.id, display: u.name }))
-      setMentionGroups([...groupOpts, ...unitOpts])
+      const unitOpts = (unitsRes?.units ?? []).map((u: { id: string; name: string }) => ({ id: u.id, display: u.name }))
+      setMentionGroups(unitOpts)
     })
   }, [])
 
