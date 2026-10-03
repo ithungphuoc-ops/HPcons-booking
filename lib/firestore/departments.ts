@@ -33,7 +33,7 @@ export const listAllDepartments = unstable_cache(
       };
     });
   },
-  ["booking-departments"],
+  ["booking-departments-v2"], // v2: có thêm parentId — khoá mới để không đọc bản cache cũ thiếu trường
   { revalidate: 300 },
 );
 

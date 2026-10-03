@@ -30,7 +30,9 @@ export function docDirectManagerIds(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   const out: string[] = [];
   for (const v of raw) {
-    if (typeof v === "string" && v && !out.includes(v)) out.push(v);
+    // trim cho khớp app Quà tặng: cùng dữ liệu phải ra cùng người duyệt ở mọi app
+    const id = typeof v === "string" ? v.trim() : "";
+    if (id && !out.includes(id)) out.push(id);
   }
   return out;
 }
