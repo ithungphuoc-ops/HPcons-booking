@@ -144,7 +144,7 @@ export default function BookingFormDialog({
   }, [isEditing])
 
   // Giữ đúng THỨ TỰ: quản lý trực tiếp đã khai → người được resolve (vd trưởng đơn vị) → các
-  // quản lý nhóm thành viên còn lại.
+  // trưởng đơn vị còn lại.
   const managerOptions = useMemo(() => {
     const order = [...directManagerIds]
     if (resolvedManagerId && !order.includes(resolvedManagerId)) order.push(resolvedManagerId)

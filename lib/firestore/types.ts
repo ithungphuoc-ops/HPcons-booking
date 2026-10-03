@@ -74,28 +74,6 @@ export interface FirestoreUserSettings {
 export type AppPermissionDoc = Record<string, string>;
 
 /**
- * Nhóm thành viên (Member Group) — collection `memberGroups`. Nhóm LINH HOẠT
- * cắt ngang phòng ban (khác "đơn vị" — org-chart cứng, 1 người 1 đơn vị):
- * App Admin/Admin tự thêm/xoá thành viên bất kỳ, không ràng buộc theo cơ cấu
- * tổ chức. Mô hình Base Account: "App Admin quản trị Nhóm thành viên — thêm/
- * xoá thành viên, định hình phạm vi truy cập tài nguyên/dự án cắt ngang
- * phòng ban". Đợt này CHƯA tích hợp làm scope cho module Request (giữ
- * `requestGroups.scopeMode` độc lập như đã quyết định) — đây là 1 primitive
- * đứng riêng để dùng dần cho các tính năng sau.
- */
-export interface MemberGroup {
-  name: string;
-  description: string | null;
-  memberIds: string[];
-  // Quản lý nhóm — bắt buộc phải là 1 phần tử của memberIds (xem
-  // validateManagerInMembers ở lib/firestore/memberGroups.ts). null/undefined
-  // = nhóm chưa có quản lý, chỉ Admin/Owner sửa được.
-  managerId?: string | null;
-  createdBy: string;
-  createdAt: Timestamp;
-}
-
-/**
  * Nhật ký hoạt động quản trị — collection "activity_logs" (13/07/2026).
  * Phạm vi đợt 1: đổi vai trò nhân viên + đổi quyền ứng dụng con. Mở rộng dần
  * ở các đợt sau (duyệt đơn/booking, đổi trưởng đơn vị...).
@@ -352,8 +330,8 @@ export interface FirestoreComment {
   entityId: string;
   authorId: string;
   text: string;
-  // uid người HOẶC id nhóm/phòng ban được @mention — phân biệt bằng tra cứu
-  // chéo lúc giãn thành thông báo (users -> memberGroups -> departments),
+  // uid người HOẶC id phòng ban được @mention — phân biệt bằng tra cứu chéo
+  // lúc giãn thành thông báo (users -> departments; memberGroups đã bỏ 03/10/2026),
   // không tách mảng riêng (xem design.md Decision 5).
   mentionIds: string[];
   // Luôn trỏ về 1 bình luận GỐC (không có parentId riêng) — trả lời 1 cấp.

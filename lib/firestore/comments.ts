@@ -1,7 +1,9 @@
 import "server-only";
 import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
-import { getUserById } from "./users";
+import { getUserById, listAllUsers } from "./users";
+import { listAllDepartments } from "./departments";
+import { thanhVienPhongBan } from "@/lib/nhomPhongBan";
 import { createNotifications } from "./notifications";
 import type { FirestoreComment } from "./types";
 
@@ -49,26 +51,21 @@ export async function deleteComment(id: string): Promise<void> {
   await adminDb.collection(COLLECTION).doc(id).delete();
 }
 
-// Giãn mentionIds thành thông báo — mỗi id thử tra users trước, không có
-// thì memberGroups, rồi departments (đúng thứ tự design.md Decision 5).
+// Giãn mentionIds thành thông báo — mỗi id thử tra users trước, không có thì
+// departments. Từ 03/10/2026 bỏ hẳn "Nhóm thành viên" (memberGroups): @nhóm chỉ
+// còn là phòng ban, gồm người có đơn vị chính HOẶC kiêm nhiệm thuộc phòng ban đó
+// hoặc nhóm con (luật thuần ở lib/nhomPhongBan.ts). Mention cũ trỏ id
+// memberGroups → không khớp phòng ban nào → [] (không lỗi, chỉ ảnh hưởng lịch sử).
+// Phòng ban + người dùng lấy từ bản đã cache (5 phút / 60 giây) — không đọc sống.
 // Loại trùng nếu 1 người vừa được mention trực tiếp vừa nằm trong nhóm được mention.
 async function resolveMentionToUserIds(mentionId: string): Promise<string[]> {
   const user = await getUserById(mentionId);
   if (user) return [mentionId];
 
-  const groupSnap = await adminDb.collection("memberGroups").doc(mentionId).get();
-  if (groupSnap.exists) {
-    const memberIds = groupSnap.data()?.memberIds;
-    return Array.isArray(memberIds) ? memberIds : [];
-  }
-
-  const deptSnap = await adminDb.collection("departments").doc(mentionId).get();
-  if (deptSnap.exists) {
-    const usersSnap = await adminDb.collection("users").where("departmentId", "==", mentionId).get();
-    return usersSnap.docs.map((d) => d.id);
-  }
-
-  return [];
+  const departments = await listAllDepartments();
+  if (!departments.some((d) => d.id === mentionId)) return [];
+  const users = await listAllUsers();
+  return thanhVienPhongBan(mentionId, departments, users);
 }
 
 export async function notifyCommentMentions(comment: CommentWithId, authorName: string): Promise<void> {
